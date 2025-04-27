@@ -1,9 +1,14 @@
+import importlib.util
 import logging
 import time
 import random
+from pathlib import Path
 
-import notify
-
+# 获取当前脚本的上级目录
+tools_path = Path(__file__).resolve().parent.parent.parent / 'public' / 'tools'
+notify_spc = importlib.util.spec_from_file_location('notify', str(tools_path / 'notify.py'))
+notify = importlib.util.module_from_spec(notify_spc)
+notify_spc.loader.exec_module(notify)
 
 message_list = []  # 存储消息数据
 
