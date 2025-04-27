@@ -16,7 +16,8 @@ import logging
 import random
 import time
 import requests
-from public.tools import notify, initialize
+
+from ...public.tools import notify, initialize
 
 # 通知内容
 message = []

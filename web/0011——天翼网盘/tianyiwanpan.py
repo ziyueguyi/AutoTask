@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: 0002——天翼网盘.py
+File: 0011——天翼网盘.py
 Author: WFRobert
 Date: 2023/5/19 11:57
 cron: 0 10 6 * * ?
@@ -218,4 +218,4 @@ def main():
 if __name__ == '__main__':
     initialize.init()  # 初始化日志系统
     main()
-    initialize.send_notify("0002——天翼网盘")  # 发送通知
+    initialize.send_notify("0011——天翼网盘")  # 发送通知
