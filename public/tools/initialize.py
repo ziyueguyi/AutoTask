@@ -1,7 +1,9 @@
 import logging
 import time
 import random
-from public.tools import notify
+
+import notify
+
 
 message_list = []  # 存储消息数据
 

@@ -10,17 +10,28 @@ Description: 小黑盒脚本,实现每日自动完成小黑盒任务
 Update: 2023/9/1 更新cron
 """
 import base64
-import importlib
+import importlib.util
 import json
 import logging
 import os
 import random
 import time
+from pathlib import Path
 
 import requests
 
-notify = importlib.import_module('.notify', '.public.tools')
-initialize = importlib.import_module('.initialize', '.public.tools')
+# 获取当前脚本的上级目录
+base_path = Path(__file__).resolve().parent.parent.parent
+print(os.listdir(base_path))
+tools_path = base_path / 'public' / 'tools'
+notify_spc = importlib.util.spec_from_file_location('notify', str(tools_path /'notify.py') )
+notify = importlib.util.module_from_spec(notify_spc)
+notify_spc.loader.exec_module(notify)
+
+initialize_spc = importlib.util.spec_from_file_location('initialize', str(tools_path /'initialize.py') )
+initialize = importlib.util.module_from_spec(initialize_spc)
+initialize_spc.loader.exec_module(initialize)
+
 # 通知内容
 message = []
 
