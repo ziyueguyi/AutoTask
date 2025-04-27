@@ -16,7 +16,7 @@ import time
 import copy
 import logging
 import random
-import initialize
+from public.tools import initialize
 
 # API_URL
 LIKIE_URL = "http://c.tieba.baidu.com/c/f/forum/like"

@@ -13,7 +13,7 @@ import os
 import requests
 import logging
 
-import initialize
+from public.tools import initialize
 
 # 通知内容
 message = []

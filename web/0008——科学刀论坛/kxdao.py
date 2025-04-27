@@ -11,7 +11,7 @@ Update: 2023/9/1 更新cron
 """
 import os
 import sys
-import initialize
+from public.tools import initialize
 import requests
 from bs4 import BeautifulSoup
 import re

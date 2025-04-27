@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: aliyunpan.py
+File: 0003——阿里云盘.py
 Author: WFRobert
 Date: 2023/5/17 19:09
 cron: 0 5 6 * * ?
@@ -15,7 +15,7 @@ import os
 from datetime import datetime
 from time import mktime, time
 
-import initialize
+from public.tools import initialize
 import requests
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: heibox.py
+File: 0001——小黑盒.py
 Author: WFRobert
 Date: 2023/5/19 10:32
 cron: 0 15 6 * * ?
@@ -16,9 +16,7 @@ import logging
 import random
 import time
 import requests
-
-import notify
-import initialize
+from public.tools import notify, initialize
 
 # 通知内容
 message = []
@@ -131,24 +129,24 @@ class XiaoHeiHe:
                 fx = self.getpost()
                 if req['status'] == "ok":
                     if req['msg'] == "":
-                        logging.info("小黑盒:已经签到过了")
-                        message.append(f"😢{self.heybox_id},小黑盒:已经签到过了")
+                        logging.info("0001——小黑盒:已经签到过了")
+                        message.append(f"😢{self.heybox_id},0001——小黑盒:已经签到过了")
                         return fx + "\n已经签到过了"
                     else:
-                        logging.info(f"小黑盒:{req['msg']}")
-                        message.append(f"😊{self.heybox_id},小黑盒:{req['msg']}")
+                        logging.info(f"0001——小黑盒:{req['msg']}")
+                        message.append(f"😊{self.heybox_id},0001——小黑盒:{req['msg']}")
                         return {fx} + "\n" + req['msg']
                 else:
-                    logging.info(f"小黑盒:签到失败 - {req['msg']}")
-                    message.append(f"😢小黑盒:签到失败 - {req['msg']}")
+                    logging.info(f"0001——小黑盒:签到失败 - {req['msg']}")
+                    message.append(f"😢0001——小黑盒:签到失败 - {req['msg']}")
                     return f"{fx}\n签到失败 - {req['msg']}"
             except Exception as e:
-                logging.info(f"小黑盒:出现了错误,错误信息{e}")
-                message.append(f"😢小黑盒:出现了错误,错误信息{e}")
+                logging.info(f"0001——小黑盒:出现了错误,错误信息{e}")
+                message.append(f"😢0001——小黑盒:出现了错误,错误信息{e}")
                 return f"出现了错误,错误信息{e}"
         else:
-            logging.info("小黑盒:没有配置cookie")
-            message.append(f"😢小黑盒:没有配置cookie")
+            logging.info("0001——小黑盒:没有配置cookie")
+            message.append(f"😢0001——小黑盒:没有配置cookie")
             return "没有配置cookie"
 
 
@@ -181,4 +179,4 @@ if __name__ == '__main__':
     main()
     # 发送通知
     msg = '\n'.join(message)
-    notify.send("小黑盒", msg)
+    notify.send("0001——小黑盒", msg)

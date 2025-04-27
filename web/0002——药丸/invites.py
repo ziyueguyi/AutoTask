@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 import json
 import requests
 import logging
-import initialize
+from public.tools import initialize
 
 
 def sign_in(user_session):

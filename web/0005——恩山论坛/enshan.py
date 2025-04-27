@@ -14,7 +14,7 @@ import os
 import sys
 import urllib.parse
 
-import initialize
+from public.tools import initialize
 import requests
 from bs4 import BeautifulSoup
 

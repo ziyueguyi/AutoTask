@@ -15,7 +15,7 @@ import sys
 import urllib.parse
 import requests
 from bs4 import BeautifulSoup
-import initialize
+from public.tools import initialize
 
 # 初始化日志系统
 initialize.init()
