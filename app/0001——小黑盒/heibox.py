@@ -10,15 +10,17 @@ Description: 小黑盒脚本,实现每日自动完成小黑盒任务
 Update: 2023/9/1 更新cron
 """
 import base64
-import os
+import importlib
 import json
 import logging
+import os
 import random
 import time
+
 import requests
 
-from ...public.tools import notify, initialize
-
+notify = importlib.import_module('.notify', '.public.tools')
+initialize = importlib.import_module('.initialize', '.public.tools')
 # 通知内容
 message = []
 
