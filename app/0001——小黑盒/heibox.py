@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: 0001——小黑盒.py
+File: 小黑盒.py
 Author: WFRobert
 Date: 2023/5/19 10:32
 cron: 0 15 6 * * ?
@@ -20,30 +20,25 @@ from pathlib import Path
 
 import requests
 
-# 获取当前脚本的上级目录
-tools_path = Path(__file__).resolve().parent.parent.parent / 'public' / 'tools'
-notify_spc = importlib.util.spec_from_file_location('notify', str(tools_path /'notify.py') )
-notify = importlib.util.module_from_spec(notify_spc)
-notify_spc.loader.exec_module(notify)
-
-initialize_spc = importlib.util.spec_from_file_location('initialize', str(tools_path /'initialize.py') )
-initialize = importlib.util.module_from_spec(initialize_spc)
-initialize_spc.loader.exec_module(initialize)
-
 # 通知内容
 message = []
 
 
 # 小黑盒签到
 class XiaoHeiHe:
-    def __init__(self, user) -> None:
-        self.Xiaoheihe = user['cookie']
-        self.imei = user['imei']
-        self.heybox_id = user['heybox_id']
-        self.version = user['version']
+    def __init__(self) -> None:
+        self.user = None
         self.n = self.get_nonce_str()
         self.t = int(time.time())
         # self.u = "/task/sign"
+        # 获取当前脚本的上级目录
+        tools_path = Path(__file__).resolve().parent.parent.parent / 'public'
+        import_set_spc = importlib.util.spec_from_file_location('ImportSet', str(tools_path / 'ImportSet.py'))
+        self.import_set = importlib.util.module_from_spec(import_set_spc)
+        import_set_spc.loader.exec_module(self.import_set)
+        self.import_set = self.import_set.ImportSet()
+        self.notify = self.import_set.import_notify()
+        self.initialize = self.import_set.import_initialize()
 
     def get_nonce_str(self, length: int = 32) -> str:
         """
@@ -67,9 +62,9 @@ class XiaoHeiHe:
             "_time": self.t,
             "hkey": self.hkey(key),
             "nonce": self.n,
-            "imei": self.imei,
-            "heybox_id": self.heybox_id,
-            "version": self.version,
+            "imei": self.user['imei'],
+            "heybox_id": self.user['heybox_id'],
+            "version": self.user['version'],
             "divice_info": "M2012K11AC",
             "x_app": "heybox",
             "channel": "heybox_xiaomi",
@@ -81,7 +76,7 @@ class XiaoHeiHe:
     def head(self):
         head = {
             "User-Agent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.118 Safari/537.36 ApiMaxJia/1.0",
-            "cookie": self.Xiaoheihe,
+            "cookie": self.user['cookie'],
             "Referer": "http://api.maxjia.com/"
         }
         return head
@@ -131,7 +126,7 @@ class XiaoHeiHe:
         return click(req) + "\n" + check()
 
     def heibox_sgin(self):
-        if self.Xiaoheihe != "":
+        if self.user['cookie'] != "":
             try:
                 req = requests.get(
                     url="https://api.xiaoheihe.cn/task/sign/",
@@ -141,54 +136,54 @@ class XiaoHeiHe:
                 fx = self.getpost()
                 if req['status'] == "ok":
                     if req['msg'] == "":
-                        logging.info("0001——小黑盒:已经签到过了")
-                        message.append(f"😢{self.heybox_id},0001——小黑盒:已经签到过了")
+                        logging.info("小黑盒:已经签到过了")
+                        message.append(f"😢{self.user['heybox_id']},小黑盒:已经签到过了")
                         return fx + "\n已经签到过了"
                     else:
-                        logging.info(f"0001——小黑盒:{req['msg']}")
-                        message.append(f"😊{self.heybox_id},0001——小黑盒:{req['msg']}")
-                        return {fx} + "\n" + req['msg']
+                        logging.info(f"小黑盒:{req['msg']}")
+                        message.append(f"😊{self.user['heybox_id']},小黑盒:{req['msg']}")
+                        return f"{fx}\n{req['msg']}"
                 else:
-                    logging.info(f"0001——小黑盒:签到失败 - {req['msg']}")
-                    message.append(f"😢0001——小黑盒:签到失败 - {req['msg']}")
+                    logging.info(f"小黑盒:签到失败 - {req['msg']}")
+                    message.append(f"😢小黑盒:签到失败 - {req['msg']}")
                     return f"{fx}\n签到失败 - {req['msg']}"
             except Exception as e:
-                logging.info(f"0001——小黑盒:出现了错误,错误信息{e}")
-                message.append(f"😢0001——小黑盒:出现了错误,错误信息{e}")
+                logging.info(f"小黑盒:出现了错误,错误信息{e}")
+                message.append(f"😢小黑盒:出现了错误,错误信息{e}")
                 return f"出现了错误,错误信息{e}"
         else:
-            logging.info("0001——小黑盒:没有配置cookie")
-            message.append(f"😢0001——小黑盒:没有配置cookie")
+            logging.info("小黑盒:没有配置cookie")
+            message.append(f"😢小黑盒:没有配置cookie")
             return "没有配置cookie"
 
-
-def main():
-    logging.info("第一次会生成heiboxConfig.json文件，请在文件中填写对应的值，将switch改为true才会运行")
-    initialize.init()  # 初始化日志系统
-    # 判断是否存在文件
-    if not os.path.exists('heiboxConfig.json'):
-        base = [{"switch": False, "cookie": "用户1cookie", "imei": "用户1imei", "heybox_id": "用户1heybox_id",
-                 "version": "1.3.229"},
-                {"switch": False, "cookie": "用户2cookie", "imei": "用户2imei", "heybox_id": "用户2heybox_id",
-                 "version": "1.3.229"}]
-        with open('heiboxConfig.json', 'w', encoding="utf-8") as f:
-            f.write(json.dumps(base, indent=4, ensure_ascii=False))
-    with open('heiboxConfig.json', 'r', encoding="utf-8") as f:
-        config = json.load(f)
-    num = 0
-    for user in config:
-        num += 1
-        if not user['switch']:
-            logging.info(f'😢第{num}个 switch值为False, 不进行任务')
-            message.append(f'😢第{num}个 switch值为False, 不进行任务')
-            continue
-        else:
-            body = XiaoHeiHe(user)
-            body.heibox_sgin()
+    def main(self):
+        logging.info("第一次会生成heiboxConfig.json文件，请在文件中填写对应的值，将switch改为true才会运行")
+        self.initialize.init()  # 初始化日志系统
+        # 判断是否存在文件
+        if not os.path.exists('heiboxConfig.json'):
+            base = [{"switch": False, "cookie": "用户1cookie", "imei": "用户1imei", "heybox_id": "用户1heybox_id",
+                     "version": "1.3.229"},
+                    {"switch": False, "cookie": "用户2cookie", "imei": "用户2imei", "heybox_id": "用户2heybox_id",
+                     "version": "1.3.229"}]
+            with open('heiboxConfig.json', 'w', encoding="utf-8") as f:
+                f.write(json.dumps(base, indent=4, ensure_ascii=False))
+        with open('heiboxConfig.json', 'r', encoding="utf-8") as f:
+            config = json.load(f)
+        num = 0
+        for user in config:
+            num += 1
+            self.user = user
+            if not user['switch']:
+                logging.info(f'😢第{num}个 switch值为False, 不进行任务')
+                message.append(f'😢第{num}个 switch值为False, 不进行任务')
+                continue
+            else:
+                body = XiaoHeiHe()
+                self.heibox_sgin()
+        # 发送通知
+        msg = '\n'.join(message)
+        self.notify.send("小黑盒", msg)
 
 
 if __name__ == '__main__':
-    main()
-    # 发送通知
-    msg = '\n'.join(message)
-    notify.send("0001——小黑盒", msg)
+    XiaoHeiHe().main()
