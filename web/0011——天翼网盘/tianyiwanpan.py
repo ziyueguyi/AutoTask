@@ -149,7 +149,8 @@ class TianYiYunPan:
         response = self.session.get(surl, headers=headers, params=params)
         net_disk = response.json().get('netdiskBonus')
         is_sign = response.json().get('isSign')
-        self.initialize.info_message(f'{username}:{'已' if is_sign else '未'}签到过,已获得{net_disk}M空间')
+        flag = '已' if is_sign else '未'
+        self.initialize.info_message(f'{username}:{flag}签到过,已获得{net_disk}M空间')
         return is_sign
 
     def cookie_status(self, user):
