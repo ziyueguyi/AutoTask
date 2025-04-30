@@ -34,9 +34,9 @@ class ImportSet:
         initialize_spc.loader.exec_module(initialize)
         return initialize.ImportSet()
 
-    def import_file_option(self):
-        file_option_spc = importlib.util.spec_from_file_location('FileOption', str(self.tools_path / 'FileOption.py'))
-        file_option = importlib.util.module_from_spec(file_option_spc)
-        file_option_spc.loader.exec_module(file_option)
-        file_option = file_option.FileOption(Path().resolve())
-        return file_option
+
+    def import_config_option(self):
+        config_option_spc = importlib.util.spec_from_file_location('ConfigOption', str(self.tools_path / 'ConfigOption.py'))
+        config_option = importlib.util.module_from_spec(config_option_spc)
+        config_option_spc.loader.exec_module(config_option)
+        return config_option.ConfigOption(Path().resolve())

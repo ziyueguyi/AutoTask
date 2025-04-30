@@ -1,7 +1,7 @@
 import importlib.util
 import logging
-import time
 import random
+import time
 from pathlib import Path
 
 
@@ -14,10 +14,11 @@ class ImportSet:
         notify_spc = importlib.util.spec_from_file_location('notify', str(tools_path / 'notify.py'))
         self.notify = importlib.util.module_from_spec(notify_spc)
         notify_spc.loader.exec_module(self.notify)
-        file_option_spc = importlib.util.spec_from_file_location('FileOption', str(public_path / 'FileOption.py'))
-        file_option = importlib.util.module_from_spec(file_option_spc)
-        file_option_spc.loader.exec_module(file_option)
-        self.file_option = file_option.FileOption(public_path)
+
+        config_option_spc = importlib.util.spec_from_file_location('ConfigOption', str(public_path / 'ConfigOption.py'))
+        config_option = importlib.util.module_from_spec(config_option_spc)
+        config_option_spc.loader.exec_module(config_option)
+        self.config_option = config_option.ConfigOption(public_path)
         self.message_list = []  # 存储消息数据
 
     @staticmethod
@@ -87,7 +88,9 @@ class ImportSet:
         # 初始化日志
         self.init_logger()
         # 随机延迟
-        logging.info("开启10秒到5分钟之间的随机延迟时间，如果不需要延迟  请将initialize.py代码中的最后一行代码注释掉")
-        delay = int(random.uniform(10, 300))
-        logging.info(f"开启延迟，{delay}秒后执行代码")
-        # time.sleep(delay)  # 注释该行代码，即可不会有延迟
+        switch_delay = self.config_option.read_config_key("系统配置", "switch_delay", field_type=bool)
+        logging.info(f"{'开启' if switch_delay else '未开启'}随机延迟时间，config.json里面switch_delay可以配置")
+        if switch_delay:
+            delay = int(random.uniform(10, 300))
+            logging.info(f"开启延迟，{delay}秒后执行代码")
+            time.sleep(delay)  # 注释该行代码，即可不会有延迟
