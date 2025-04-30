@@ -19,9 +19,9 @@ user_data.json
 *.xml
 # 去除所有的iml
 *.iml
-/app/*.ini
-/mini/*.ini
-/web/*.ini
+/app/*/*.ini
+/mini/*/*.ini
+/web/*/*.ini
 /52pojie/cookies.txt
 
 # C extensions
