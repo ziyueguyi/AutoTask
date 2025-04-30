@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: 天翼网盘.py
-Author: WFRobert
-Date: 2023/5/19 11:57
+# @项目名称 :自动化任务
+# @文件名称 :天翼网盘.py
+# @作者名称 :张洛
+# @日期时间 :2025/04/30 9:25
+# @文件介绍 :天翼网盘脚本,实现每日自动完成天翼网盘签到
 cron: 0 10 6 * * ?
 new Env('天翼网盘签到脚本');
-Description: 天翼网盘脚本,实现每日自动完成天翼网盘签到
-Update: 2023/9/1 更新cron
 """
 import base64
 import importlib.util
