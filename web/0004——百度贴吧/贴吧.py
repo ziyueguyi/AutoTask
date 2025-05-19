@@ -88,7 +88,7 @@ class PostBar:
         :return:
         """
         time.sleep(random.randint(1, 2))
-        response = self.session.get(f'https://tieba.baidu.com/f?ie=utf-8&kw=${bar_name}&fr=search')
+        response = self.session.get(f'https://tieba.baidu.com/f?ie=utf-8&kw={bar_name}&fr=search')
         return response.status_code == 200 and '很抱歉，没有找到相关内容' not in response.text
 
     def get_tbs(self):
