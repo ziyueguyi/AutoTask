@@ -5,6 +5,8 @@
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 11:04
 # @文件介绍 :
+const $ = new Env('贴吧任务签到')
+cron: 19 7 * * *
 """
 from importlib import util
 from pathlib import Path
