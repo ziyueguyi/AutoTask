@@ -105,13 +105,13 @@ class PostBar:
             response = self.session.post('http://c.tieba.baidu.com/c/c/forum/sign', data=data)
             if response.status_code == 200:
                 if response.json()['error_code'] == '0':
-                    self.initialize.info_message(f"贴吧{bl}签到成功", is_flag=True)
+                    self.initialize.info_message(f"贴吧【{bl}】签到成功", is_flag=True)
                 elif response.json()['error_code'] == '160002':
-                    self.initialize.info_message(f"贴吧{bl}已经签过到了", is_flag=True)
+                    self.initialize.info_message(f"贴吧【{bl}】已经签过到了", is_flag=True)
                 else:
                     self.initialize.info_message("未知错误", is_flag=True)
             else:
-                self.initialize.error_message(f"贴吧{bl}签到失败", is_flag=True)
+                self.initialize.error_message(f"贴吧【{bl}】签到失败", is_flag=True)
 
     def run(self):
         self.initialize.info_message("贴吧签到开始")
