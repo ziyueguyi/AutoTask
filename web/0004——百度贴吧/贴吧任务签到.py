@@ -6,17 +6,16 @@
 # @日期时间 : 2025/5/19 17:11
 # @文件介绍 :
 new Env('贴吧任务签到')
-cron: 19 7 * * *
+cron: 19 6 * * *
 """
 
-import hashlib
 import json
-import random
 import time
 from importlib import util
 from pathlib import Path
-from fake_useragent import UserAgent  # pip install fake-useragent
+
 from curl_cffi import requests
+from fake_useragent import UserAgent  # pip install fake-useragent
 
 
 class PostBar:
