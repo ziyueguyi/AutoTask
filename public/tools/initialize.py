@@ -20,6 +20,7 @@ class ImportSet:
         config_option_spc.loader.exec_module(config_option)
         self.config_option = config_option.ConfigOption(public_path)
         self.message_list = []  # 存储消息数据
+        self.init()
 
     @staticmethod
     def init_logger():
@@ -40,25 +41,29 @@ class ImportSet:
         ch.setFormatter(log_format)
         log.addHandler(ch)
 
-    def info_message(self, message_content):
+    def info_message(self, message_content, is_flag=False):
         """
         成功日志输出
 
         :param message_content:
+        :param is_flag:是否记录该日志，等发送的时候一并发送出去
         :return:
         """
         logging.info(f"🎈{message_content}")
-        self.message(f"🎈{message_content}")
+        if is_flag:
+            self.message(f"🎈{message_content}")
 
-    def error_message(self, message_content):
+    def error_message(self, message_content, is_flag=False):
         """
         失败日志输出
 
         :param message_content:
+        :param is_flag:是否记录该日志，等发送的时候一并发送出去
         :return:
         """
         logging.error(f"😢{message_content}")
-        self.message(f"😢{message_content}")
+        if is_flag:
+            self.message(f"😢{message_content}")
 
     def message(self, message_content):
         """
@@ -77,7 +82,7 @@ class ImportSet:
         :return:
         """
         msg = '\n'.join(self.message_list)
-        self.notify.send(title, msg)
+        self.notify.Notify().send(title, msg)
 
     def init(self):
         """

@@ -26,6 +26,10 @@ class Template:
         self.init_config()
 
     def init_config(self):
+        """
+        初始化方法
+        :return:
+        """
         if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
             self.config_option.write_config("账户1", "switch", "0")
             self.config_option.write_config("账户1", "cookies", "")
@@ -33,6 +37,6 @@ class Template:
     def run(self):
         pass
 
+
 if __name__ == '__main__':
-    t = Template()
-    t.run()
+    Template().run()

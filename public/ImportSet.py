@@ -24,7 +24,7 @@ class ImportSet:
         notify_spc = importlib.util.spec_from_file_location('notify', str(self.tools_path / 'tools' / 'notify.py'))
         notify = importlib.util.module_from_spec(notify_spc)
         notify_spc.loader.exec_module(notify)
-        return notify
+        return notify.Notify()
 
     def import_initialize(self):
         """"""

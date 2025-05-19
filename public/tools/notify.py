@@ -6,20 +6,18 @@ import hmac
 import json
 import os
 import re
+import smtplib
 import sys
 import threading
 import time
 import urllib.parse
-import smtplib
-from email.mime.text import MIMEText
 from email.header import Header
+from email.mime.text import MIMEText
 from email.utils import formataddr
 from importlib import util
 from pathlib import Path
 
 import requests
-
-from public.ConfigOption import ConfigOption
 
 
 class Notify:
@@ -148,7 +146,7 @@ class Notify:
             self.notify_function.append(self.smtp)
 
     # 定义新的 print 函数
-    def _print(self, text, *args, **kw):
+    def print_info(self, text, *args, **kw):
         """
         使输出有序进行，不出现多线程同一时间输出导致错乱的问题。
         """
@@ -160,9 +158,9 @@ class Notify:
         使用 bark 推送消息。
         """
         if not self.push_config.get("BARK_PUSH"):
-            self._print("bark 服务的 BARK_PUSH 未设置!!\n取消推送")
+            self.print_info("bark 服务的 BARK_PUSH 未设置!!\n取消推送")
             return
-        self._print("bark 服务启动")
+        self.print_info("bark 服务启动")
 
         if self.push_config.get("BARK_PUSH").startswith("http"):
             url = f'{self.push_config.get("BARK_PUSH")}/{urllib.parse.quote_plus(title)}/{urllib.parse.quote_plus(content)}'
@@ -189,24 +187,24 @@ class Notify:
         response = requests.get(url).json()
 
         if response["code"] == 200:
-            self._print("bark 推送成功！")
+            self.print_info("bark 推送成功！")
         else:
-            self._print("bark 推送失败！")
+            self.print_info("bark 推送失败！")
 
     def console(self, title: str, content: str) -> None:
         """
         使用 控制台 推送消息。
         """
-        self._print(f"{title}\n\n{content}")
+        self.print_info(f"{title}\n\n{content}")
 
     def dingding_bot(self, title: str, content: str) -> None:
         """
         使用 钉钉机器人 推送消息。
         """
         if not self.push_config.get("DD_BOT_SECRET") or not self.push_config.get("DD_BOT_TOKEN"):
-            self._print("钉钉机器人 服务的 DD_BOT_SECRET 或者 DD_BOT_TOKEN 未设置!!\n取消推送")
+            self.print_info("钉钉机器人 服务的 DD_BOT_SECRET 或者 DD_BOT_TOKEN 未设置!!\n取消推送")
             return
-        self._print("钉钉机器人 服务启动")
+        self.print_info("钉钉机器人 服务启动")
 
         timestamp = str(round(time.time() * 1000))
         secret_enc = self.push_config.get("DD_BOT_SECRET").encode("utf-8")
@@ -224,71 +222,71 @@ class Notify:
         ).json()
 
         if not response["errcode"]:
-            self._print("钉钉机器人 推送成功！")
+            self.print_info("钉钉机器人 推送成功！")
         else:
-            self._print("钉钉机器人 推送失败！")
+            self.print_info("钉钉机器人 推送失败！")
 
     def feishu_bot(self, title: str, content: str) -> None:
         """
         使用 飞书机器人 推送消息。
         """
         if not self.push_config.get("FSKEY"):
-            self._print("飞书 服务的 FSKEY 未设置!!\n取消推送")
+            self.print_info("飞书 服务的 FSKEY 未设置!!\n取消推送")
             return
-        self._print("飞书 服务启动")
+        self.print_info("飞书 服务启动")
 
         url = f'https://open.feishu.cn/open-apis/bot/v2/hook/{self.push_config.get("FSKEY")}'
         data = {"msg_type": "text", "content": {"text": f"{title}\n\n{content}"}}
         response = requests.post(url, data=json.dumps(data)).json()
 
         if response.get("StatusCode") == 0:
-            self._print("飞书 推送成功！")
+            self.print_info("飞书 推送成功！")
         else:
-            self._print("飞书 推送失败！错误信息如下：\n", response)
+            self.print_info("飞书 推送失败！错误信息如下：\n", response)
 
     def go_cqhttp(self, title: str, content: str) -> None:
         """
         使用 go_cqhttp 推送消息。
         """
         if not self.push_config.get("GOBOT_URL") or not self.push_config.get("GOBOT_QQ"):
-            self._print("go-cqhttp 服务的 GOBOT_URL 或 GOBOT_QQ 未设置!!\n取消推送")
+            self.print_info("go-cqhttp 服务的 GOBOT_URL 或 GOBOT_QQ 未设置!!\n取消推送")
             return
-        self._print("go-cqhttp 服务启动")
+        self.print_info("go-cqhttp 服务启动")
 
         url = f'{self.push_config.get("GOBOT_URL")}?access_token={self.push_config.get("GOBOT_TOKEN")}&{self.push_config.get("GOBOT_QQ")}&message=标题:{title}\n内容:{content}'
         response = requests.get(url).json()
 
         if response["status"] == "ok":
-            self._print("go-cqhttp 推送成功！")
+            self.print_info("go-cqhttp 推送成功！")
         else:
-            self._print("go-cqhttp 推送失败！")
+            self.print_info("go-cqhttp 推送失败！")
 
     def gotify(self, title: str, content: str) -> None:
         """
         使用 gotify 推送消息。
         """
         if not self.push_config.get("GOTIFY_URL") or not self.push_config.get("GOTIFY_TOKEN"):
-            self._print("gotify 服务的 GOTIFY_URL 或 GOTIFY_TOKEN 未设置!!\n取消推送")
+            self.print_info("gotify 服务的 GOTIFY_URL 或 GOTIFY_TOKEN 未设置!!\n取消推送")
             return
-        self._print("gotify 服务启动")
+        self.print_info("gotify 服务启动")
 
         url = f'{self.push_config.get("GOTIFY_URL")}/message?token={self.push_config.get("GOTIFY_TOKEN")}'
         data = {"title": title, "message": content, "priority": self.push_config.get("GOTIFY_PRIORITY")}
         response = requests.post(url, data=data).json()
 
         if response.get("id"):
-            self._print("gotify 推送成功！")
+            self.print_info("gotify 推送成功！")
         else:
-            self._print("gotify 推送失败！")
+            self.print_info("gotify 推送失败！")
 
     def iGot(self, title: str, content: str) -> None:
         """
         使用 iGot 推送消息。
         """
         if not self.push_config.get("IGOT_PUSH_KEY"):
-            self._print("iGot 服务的 IGOT_PUSH_KEY 未设置!!\n取消推送")
+            self.print_info("iGot 服务的 IGOT_PUSH_KEY 未设置!!\n取消推送")
             return
-        self._print("iGot 服务启动")
+        self.print_info("iGot 服务启动")
 
         url = f'https://push.hellyw.com/{self.push_config.get("IGOT_PUSH_KEY")}'
         data = {"title": title, "content": content}
@@ -296,18 +294,18 @@ class Notify:
         response = requests.post(url, data=data, headers=headers).json()
 
         if response["ret"] == 0:
-            self._print("iGot 推送成功！")
+            self.print_info("iGot 推送成功！")
         else:
-            self._print(f'iGot 推送失败！{response["errMsg"]}')
+            self.print_info(f'iGot 推送失败！{response["errMsg"]}')
 
     def serverJ(self, title: str, content: str) -> None:
         """
         通过 serverJ 推送消息。
         """
         if not self.push_config.get("PUSH_KEY"):
-            self._print("serverJ 服务的 PUSH_KEY 未设置!!\n取消推送")
+            self.print_info("serverJ 服务的 PUSH_KEY 未设置!!\n取消推送")
             return
-        self._print("serverJ 服务启动")
+        self.print_info("serverJ 服务启动")
 
         data = {"text": title, "desp": content.replace("\n", "\n\n")}
         if self.push_config.get("PUSH_KEY").index("SCT") != -1:
@@ -317,18 +315,18 @@ class Notify:
         response = requests.post(url, data=data).json()
 
         if response.get("errno") == 0 or response.get("code") == 0:
-            self._print("serverJ 推送成功！")
+            self.print_info("serverJ 推送成功！")
         else:
-            self._print(f'serverJ 推送失败！错误码：{response["message"]}')
+            self.print_info(f'serverJ 推送失败！错误码：{response["message"]}')
 
     def pushdeer(self, title: str, content: str) -> None:
         """
         通过PushDeer 推送消息
         """
         if not self.push_config.get("DEER_KEY"):
-            self._print("PushDeer 服务的 DEER_KEY 未设置!!\n取消推送")
+            self.print_info("PushDeer 服务的 DEER_KEY 未设置!!\n取消推送")
             return
-        self._print("PushDeer 服务启动")
+        self.print_info("PushDeer 服务启动")
         data = {"text": title, "desp": content, "type": "markdown", "pushkey": self.push_config.get("DEER_KEY")}
         url = 'https://api2.pushdeer.com/message/push'
         if self.push_config.get("DEER_URL"):
@@ -337,35 +335,35 @@ class Notify:
         response = requests.post(url, data=data).json()
 
         if len(response.get("content").get("result")) > 0:
-            self._print("PushDeer 推送成功！")
+            self.print_info("PushDeer 推送成功！")
         else:
-            self._print("PushDeer 推送失败！错误信息：", response)
+            self.print_info("PushDeer 推送失败！错误信息：", response)
 
     def chat(self, title: str, content: str) -> None:
         """
         通过Chat 推送消息
         """
         if not self.push_config.get("CHAT_URL") or not self.push_config.get("CHAT_TOKEN"):
-            self._print("chat 服务的 CHAT_URL或CHAT_TOKEN 未设置!!\n取消推送")
+            self.print_info("chat 服务的 CHAT_URL或CHAT_TOKEN 未设置!!\n取消推送")
             return
-        self._print("chat 服务启动")
+        self.print_info("chat 服务启动")
         data = 'payload=' + json.dumps({'text': title + '\n' + content})
         url = self.push_config.get("CHAT_URL") + self.push_config.get("CHAT_TOKEN")
         response = requests.post(url, data=data)
 
         if response.status_code == 200:
-            self._print("Chat 推送成功！")
+            self.print_info("Chat 推送成功！")
         else:
-            self._print("Chat 推送失败！错误信息：", response)
+            self.print_info("Chat 推送失败！错误信息：", response)
 
     def pushplus_bot(self, title: str, content: str) -> None:
         """
         通过 push+ 推送消息。
         """
         if not self.push_config.get("PUSH_PLUS_TOKEN"):
-            self._print("PUSHPLUS 服务的 PUSH_PLUS_TOKEN 未设置!!\n取消推送")
+            self.print_info("PUSHPLUS 服务的 PUSH_PLUS_TOKEN 未设置!!\n取消推送")
             return
-        self._print("PUSHPLUS 服务启动")
+        self.print_info("PUSHPLUS 服务启动")
 
         url = "http://www.pushplus.plus/send"
         data = {
@@ -379,7 +377,7 @@ class Notify:
         response = requests.post(url=url, data=body, headers=headers).json()
 
         if response["code"] == 200:
-            self._print("PUSHPLUS 推送成功！")
+            self.print_info("PUSHPLUS 推送成功！")
 
         else:
 
@@ -388,41 +386,41 @@ class Notify:
             response = requests.post(url=url_old, data=body, headers=headers).json()
 
             if response["code"] == 200:
-                self._print("PUSHPLUS(hxtrip) 推送成功！")
+                self.print_info("PUSHPLUS(hxtrip) 推送成功！")
 
             else:
-                self._print("PUSHPLUS 推送失败！")
+                self.print_info("PUSHPLUS 推送失败！")
 
     def qmsg_bot(self, title: str, content: str) -> None:
         """
         使用 qmsg 推送消息。
         """
         if not self.push_config.get("QMSG_KEY") or not self.push_config.get("QMSG_TYPE"):
-            self._print("qmsg 的 QMSG_KEY 或者 QMSG_TYPE 未设置!!\n取消推送")
+            self.print_info("qmsg 的 QMSG_KEY 或者 QMSG_TYPE 未设置!!\n取消推送")
             return
-        self._print("qmsg 服务启动")
+        self.print_info("qmsg 服务启动")
 
         url = f'https://qmsg.zendee.cn/{self.push_config.get("QMSG_TYPE")}/{self.push_config.get("QMSG_KEY")}'
         payload = {"msg": f'{title}\n\n{content.replace("----", "-")}'.encode("utf-8")}
         response = requests.post(url=url, params=payload).json()
 
         if response["code"] == 0:
-            self._print("qmsg 推送成功！")
+            self.print_info("qmsg 推送成功！")
         else:
-            self._print(f'qmsg 推送失败！{response["reason"]}')
+            self.print_info(f'qmsg 推送失败！{response["reason"]}')
 
     def wecom_app(self, title: str, content: str) -> None:
         """
         通过 企业微信 APP 推送消息。
         """
         if not self.push_config.get("QYWX_AM"):
-            self._print("QYWX_AM 未设置!!\n取消推送")
+            self.print_info("QYWX_AM 未设置!!\n取消推送")
             return
         QYWX_AM_AY = re.split(",", self.push_config.get("QYWX_AM"))
         if 4 < len(QYWX_AM_AY) > 5:
-            self._print("QYWX_AM 设置错误!!\n取消推送")
+            self.print_info("QYWX_AM 设置错误!!\n取消推送")
             return
-        self._print("企业微信 APP 服务启动")
+        self.print_info("企业微信 APP 服务启动")
 
         corpid = QYWX_AM_AY[0]
         corpsecret = QYWX_AM_AY[1]
@@ -441,18 +439,18 @@ class Notify:
             response = wx.send_mpnews(title, content, media_id, touser)
 
         if response == "ok":
-            self._print("企业微信推送成功！")
+            self.print_info("企业微信推送成功！")
         else:
-            self._print("企业微信推送失败！错误信息如下：\n", response)
+            self.print_info("企业微信推送失败！错误信息如下：\n", response)
 
     def wecom_bot(self, title: str, content: str) -> None:
         """
         通过 企业微信机器人 推送消息。
         """
         if not self.push_config.get("QYWX_KEY"):
-            self._print("企业微信机器人 服务的 QYWX_KEY 未设置!!\n取消推送")
+            self.print_info("企业微信机器人 服务的 QYWX_KEY 未设置!!\n取消推送")
             return
-        self._print("企业微信机器人服务启动")
+        self.print_info("企业微信机器人服务启动")
 
         url = f"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={self.push_config.get('QYWX_KEY')}"
         headers = {"Content-Type": "application/json;charset=utf-8"}
@@ -462,18 +460,18 @@ class Notify:
         ).json()
 
         if response["errcode"] == 0:
-            self._print("企业微信机器人推送成功！")
+            self.print_info("企业微信机器人推送成功！")
         else:
-            self._print("企业微信机器人推送失败！")
+            self.print_info("企业微信机器人推送失败！")
 
     def telegram_bot(self, title: str, content: str) -> None:
         """
         使用 telegram 机器人 推送消息。
         """
         if not self.push_config.get("TG_BOT_TOKEN") or not self.push_config.get("TG_USER_ID"):
-            self._print("tg 服务的 bot_token 或者 user_id 未设置!!\n取消推送")
+            self.print_info("tg 服务的 bot_token 或者 user_id 未设置!!\n取消推送")
             return
-        self._print("tg 服务启动")
+        self.print_info("tg 服务启动")
 
         if self.push_config.get("TG_API_HOST"):
             url = f"https://{self.push_config.get('TG_API_HOST')}/bot{self.push_config.get('TG_BOT_TOKEN')}/sendMessage"
@@ -506,9 +504,9 @@ class Notify:
         ).json()
 
         if response["ok"]:
-            self._print("tg 推送成功！")
+            self.print_info("tg 推送成功！")
         else:
-            self._print("tg 推送失败！")
+            self.print_info("tg 推送失败！")
 
     def aibotk(self, title: str, content: str) -> None:
         """
@@ -517,9 +515,9 @@ class Notify:
         if not self.push_config.get("AIBOTK_KEY") or not self.push_config.get(
                 "AIBOTK_TYPE") or not self.push_config.get(
             "AIBOTK_NAME"):
-            self._print("智能微秘书 的 AIBOTK_KEY 或者 AIBOTK_TYPE 或者 AIBOTK_NAME 未设置!!\n取消推送")
+            self.print_info("智能微秘书 的 AIBOTK_KEY 或者 AIBOTK_TYPE 或者 AIBOTK_NAME 未设置!!\n取消推送")
             return
-        self._print("智能微秘书 服务启动")
+        self.print_info("智能微秘书 服务启动")
 
         if self.push_config.get("AIBOTK_TYPE") == 'room':
             url = "https://api-bot.aibotk.com/openapi/v1/chat/room"
@@ -538,11 +536,11 @@ class Notify:
         body = json.dumps(data).encode(encoding="utf-8")
         headers = {"Content-Type": "application/json"}
         response = requests.post(url=url, data=body, headers=headers).json()
-        self._print(response)
+        self.print_info(response)
         if response["code"] == 0:
-            self._print("智能微秘书 推送成功！")
+            self.print_info("智能微秘书 推送成功！")
         else:
-            self._print(f'智能微秘书 推送失败！{response["error"]}')
+            self.print_info(f'智能微秘书 推送失败！{response["error"]}')
 
     def smtp(self, title: str, content: str) -> None:
         """
@@ -550,10 +548,10 @@ class Notify:
         """
         if not self.push_config.get("SMTP_SERVER") or not self.push_config.get("SMTP_SSL") or not self.push_config.get(
                 "SMTP_EMAIL") or not self.push_config.get("SMTP_PASSWORD") or not self.push_config.get("SMTP_NAME"):
-            self._print(
+            self.print_info(
                 "SMTP 邮件 的 SMTP_SERVER 或者 SMTP_SSL 或者 SMTP_EMAIL 或者 SMTP_PASSWORD 或者 SMTP_NAME 未设置!!\n取消推送")
             return
-        self._print("SMTP 邮件 服务启动")
+        self.print_info("SMTP 邮件 服务启动")
 
         message = MIMEText(content, 'plain', 'utf-8')
         message['From'] = formataddr(
@@ -569,9 +567,9 @@ class Notify:
             smtp_server.sendmail(self.push_config.get("SMTP_EMAIL"), self.push_config.get("SMTP_EMAIL"),
                                  message.as_bytes())
             smtp_server.close()
-            self._print("SMTP 邮件 推送成功！")
+            self.print_info("SMTP 邮件 推送成功！")
         except Exception as e:
-            self._print(f'SMTP 邮件 推送失败！{e}')
+            self.print_info(f'SMTP 邮件 推送失败！{e}')
 
     def one(self) -> str:
         """
@@ -589,36 +587,28 @@ class Notify:
         if config is None:
             # 获取主运行脚本的文件路径
             config = self.config_option.read_config_key(section="系统配置", key="notice")
-            config = config == sys.argv[0].split('.')[0]
+            config = config == sys.argv[0].split('.')[0] or config == "all"
 
         return config
 
     def send(self, title: str, content: str, config_notice: bool = None) -> None:
         if not self.read_config(config_notice):
-            self._print(f"{title} 已设置不进行推送，如需打开请配置notice=True")
+            self.print_info(f"{title} 已设置不进行推送，如需打开请配置notice=True")
             return
-        if not content:
-            self._print(f"{title} 推送内容为空！")
+        elif not content:
+            self.print_info(f"{title} 推送内容为空！")
             return
-
-        # 根据标题跳过一些消息推送，环境变量：SKIP_PUSH_TITLE 用回车分隔
-        skipTitle = os.getenv("SKIP_PUSH_TITLE")
-        if skipTitle:
-            if (title in re.split("\n", skipTitle)):
-                self._print(f"{title} 在SKIP_PUSH_TITLE环境变量内，跳过推送！")
-                return
-
-        hitokoto = self.push_config.get("HITOKOTO")
-
-        text = self.one() if hitokoto else ""
-        content += "\n\n" + text
-
-        ts = [
-            threading.Thread(target=mode, args=(title, content), name=mode.__name__)
-            for mode in self.notify_function
-        ]
-        [t.start() for t in ts]
-        [t.join() for t in ts]
+        else:
+            # 根据标题跳过一些消息推送，环境变量：SKIP_PUSH_TITLE 用回车分隔
+            if os.getenv("SKIP_PUSH_TITLE"):
+                if title in re.split("\n", os.getenv("SKIP_PUSH_TITLE")):
+                    self.print_info(f"{title} 在SKIP_PUSH_TITLE环境变量内，跳过推送！")
+                    return
+            content += "\n\n" + self.one() if self.push_config.get("HITOKOTO") else ""
+            ts = [threading.Thread(target=mode, args=(title, content), name=mode.__name__) for mode in
+                  self.notify_function]
+            [t.start() for t in ts]
+            [t.join() for t in ts]
 
     def run(self):
         self.get_env_info()

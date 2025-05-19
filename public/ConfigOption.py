@@ -34,6 +34,7 @@ class ConfigOption:
         # 写入配置到文件
         with open(Path.joinpath(file_path, 'config.ini'), 'w', encoding="UTF8") as configfile:
             self.config.write(configfile)
+        return self
 
     def read_config_key(self, section=None, key=None, file_path=None, field_type=str):
         """
