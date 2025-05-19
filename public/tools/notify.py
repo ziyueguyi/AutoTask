@@ -98,6 +98,7 @@ class Notify:
             'SMTP_NAME': '',  # SMTP 收发件人姓名，可随意填写
         }
         self.notify_function = []
+        self.get_env_info()
         # fmt: on
 
     def get_env_info(self):
@@ -611,7 +612,7 @@ class Notify:
             [t.join() for t in ts]
 
     def run(self):
-        self.get_env_info()
+
         self.send("title", "content")
 
 
