@@ -63,6 +63,13 @@ class PostBar:
             return None, None
 
     def sign(self, tbs, user_name, sec):
+        """
+        账号进行签到
+        :param tbs:
+        :param user_name:
+        :param sec:
+        :return:
+        """
         params = {
             'tbs': tbs,
             'act_type': 'page_sign',
@@ -81,6 +88,24 @@ class PostBar:
         else:
             self.initialize.info_message(f"{user_name}签到失败", is_flag=True)
 
+    def get_point(self):
+        """
+        获取账号积分信息
+        :return:
+        """
+        url = f'{self.baseUrl}/mo/q/usergrowth/showUserGrowth?client_type=2&client_version=12.60.1.2'
+        response = self.session.get(url)
+        if response.status_code == 200 and response.json().get("no") == 0:
+            data = response.json()['data']
+            level = list(filter(lambda x: x['is_current'] == 1, data['level_info']))[0]
+            points = level['next_level_value'] - level['growth_value']
+            self.initialize.info_message(f"当前账号等级：{level['level']}", is_flag=True)
+            self.initialize.info_message(f"当前贴贝余额：{data['tmoney']['current']}", is_flag=True)
+            self.initialize.info_message(f"当前已有积分：{data['growth_info']['value']}", is_flag=True)
+            self.initialize.info_message(f"下级所需积分：{points}", is_flag=True)
+        else:
+            self.initialize.info_message(f"获取积分失败", is_flag=True)
+
     def run(self):
         self.initialize.info_message("贴吧签到开始")
         account_list = self.config_option.read_config_key()
@@ -91,8 +116,10 @@ class PostBar:
             if user_name:
                 time.sleep(1)
                 self.sign(tbs, user_name, sec)
+                time.sleep(1)
+                self.get_point()
         self.initialize.info_message("贴吧签到结束")
-        self.initialize.send_notify("「贴吧」")
+        self.initialize.send_notify("「贴吧签到」")
 
 
 if __name__ == '__main__':
