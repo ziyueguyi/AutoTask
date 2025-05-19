@@ -5,6 +5,7 @@
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 11:04
 # @文件介绍 :
+new Env('百度贴吧');
 """
 import hashlib
 import json
