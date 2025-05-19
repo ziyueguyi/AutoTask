@@ -14,7 +14,7 @@ import time
 from importlib import util
 from pathlib import Path
 from fake_useragent import UserAgent  # pip install fake-useragent
-import requests
+from curl_cffi import requests
 
 
 class PostBar:
@@ -88,7 +88,8 @@ class PostBar:
         :return:
         """
         time.sleep(random.randint(1, 2))
-        response = self.session.get(f'https://tieba.baidu.com/f?ie=utf-8&kw={bar_name}&fr=search')
+        params = {'ie': 'utf-8', 'kw': bar_name, 'fr': 'search'}
+        response = self.session.get(f'https://tieba.baidu.com/f', params=params)
         return response.status_code == 200 and '很抱歉，没有找到相关内容' not in response.text
 
     def get_tbs(self):
