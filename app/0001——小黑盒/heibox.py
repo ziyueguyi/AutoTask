@@ -11,11 +11,8 @@ Update: 2023/9/1 更新cron
 """
 import base64
 import importlib.util
-import json
 import logging
-import os
 import random
-import time
 from pathlib import Path
 
 import requests
@@ -27,11 +24,6 @@ message = []
 # 小黑盒签到
 class XiaoHeiHe:
     def __init__(self) -> None:
-        self.user = None
-        self.n = self.get_nonce_str()
-        self.t = int(time.time())
-        # self.u = "/task/sign"
-        # 获取当前脚本的上级目录
         tools_path = Path(__file__).resolve().parent.parent.parent / 'public'
         import_set_spc = importlib.util.spec_from_file_location('ImportSet', str(tools_path / 'ImportSet.py'))
         self.import_set = importlib.util.module_from_spec(import_set_spc)
@@ -39,6 +31,9 @@ class XiaoHeiHe:
         self.import_set = self.import_set.ImportSet()
         self.notify = self.import_set.import_notify()
         self.initialize = self.import_set.import_initialize()
+        self.config_option = self.import_set.import_config_option()
+        self.session = requests.Session()
+        self.init_config()
 
     def get_nonce_str(self, length: int = 32) -> str:
         """
@@ -57,7 +52,7 @@ class XiaoHeiHe:
         zz = requests.get("http://146.56.234.178:8077/encode", params=params).text
         return zz
 
-    def params(self, key):
+    def params(self, key,cookie):
         p = {
             "_time": self.t,
             "hkey": self.hkey(key),
@@ -73,10 +68,10 @@ class XiaoHeiHe:
         }
         return p
 
-    def head(self):
+    def head(self,cookie):
         head = {
             "User-Agent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.118 Safari/537.36 ApiMaxJia/1.0",
-            "cookie": self.user['cookie'],
+            "cookie": cookie,
             "Referer": "http://api.maxjia.com/"
         }
         return head
@@ -85,11 +80,11 @@ class XiaoHeiHe:
         result = base64.b64encode(data.encode('utf-8')).decode('utf-8')
         return str(result)
 
-    def getpost(self):
+    def getpost(self,cookie):
         req = requests.get(
             url="https://api.xiaoheihe.cn/bbs/app/feeds/news",
             params=self.params("/bbs/app/feeds/news"),
-            headers=self.head()
+            headers=self.head(cookie)
         ).json()['result']['links'][1]['linkid']
 
         def click(link_id):
@@ -125,15 +120,13 @@ class XiaoHeiHe:
 
         return click(req) + "\n" + check()
 
-    def heibox_sgin(self):
-        if self.user['cookie'] != "":
+    def heibox_sgin(self, user):
+        cookie = self.config_option.read_config_key(user, 'cookies')
+        if cookie != "":
             try:
-                req = requests.get(
-                    url="https://api.xiaoheihe.cn/task/sign/",
-                    params=self.params("/task/sign/"),
-                    headers=self.head()
-                ).json()
-                fx = self.getpost()
+                req = requests.get(url="https://api.xiaoheihe.cn/task/sign/", params=self.params("/task/sign/"),
+                                   headers=self.head()).json()
+                fx = self.getpost(cookie)
                 if req['status'] == "ok":
                     if req['msg'] == "":
                         logging.info("小黑盒:已经签到过了")
@@ -156,34 +149,23 @@ class XiaoHeiHe:
             message.append(f"😢小黑盒:没有配置cookie")
             return "没有配置cookie"
 
-    def main(self):
-        logging.info("第一次会生成heiboxConfig.json文件，请在文件中填写对应的值，将switch改为true才会运行")
+    def init_config(self):
+        if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
+            self.config_option.write_config("账户1", "switch", "0")
+            self.config_option.write_config("账户1", "cookies", "")
+
+    def run(self):
         self.initialize.init()  # 初始化日志系统
         # 判断是否存在文件
-        if not os.path.exists('heiboxConfig.json'):
-            base = [{"switch": False, "cookie": "用户1cookie", "imei": "用户1imei", "heybox_id": "用户1heybox_id",
-                     "version": "1.3.229"},
-                    {"switch": False, "cookie": "用户2cookie", "imei": "用户2imei", "heybox_id": "用户2heybox_id",
-                     "version": "1.3.229"}]
-            with open('heiboxConfig.json', 'w', encoding="utf-8") as f:
-                f.write(json.dumps(base, indent=4, ensure_ascii=False))
-        with open('heiboxConfig.json', 'r', encoding="utf-8") as f:
-            config = json.load(f)
-        num = 0
-        for user in config:
-            num += 1
-            self.user = user
-            if not user['switch']:
-                logging.info(f'😢第{num}个 switch值为False, 不进行任务')
-                message.append(f'😢第{num}个 switch值为False, 不进行任务')
-                continue
+        sections = self.config_option.read_config_key()
+        for index, section in enumerate(sections):
+            if not self.config_option.read_config_key(section, 'switch', field_type=bool):
+                self.initialize.error_message(f'😢第{index + 1}个 switch值为False，不进行任务，跳过该账号')
             else:
-                body = XiaoHeiHe()
-                self.heibox_sgin()
-        # 发送通知
-        msg = '\n'.join(message)
-        self.notify.send("小黑盒", msg)
+                self.heibox_sgin(section)
+            self.initialize.message("\n")
+        self.initialize.send_notify("小黑盒")  # 发送通知
 
 
 if __name__ == '__main__':
-    XiaoHeiHe().main()
+    XiaoHeiHe().run()
