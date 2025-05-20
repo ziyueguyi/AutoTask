@@ -86,12 +86,14 @@ class Template:
         if response.status_code == 200 and response.json()["err_no"] == 0:
             self.initialize.info_message(f"签到成功", is_flag=True)
             self.initialize.info_message(f"获得矿石：{response.json()['data']['incr_point']}颗", is_flag=True)
-            self.draw(params)
+
+            return True
         elif response.status_code == 200 and response.json()["err_no"] == 15001:
             self.initialize.info_message("今日已签到", is_flag=True)
             self.initialize.info_message(f"获得矿石：-颗", is_flag=True)
         else:
             self.initialize.error_message(f"未知错误:{response.text}")
+        return False
 
     def get_ore_num(self, params):
         response = self.session.get("https://api.juejin.cn/growth_api/v1/get_cur_point", params=params)
@@ -134,8 +136,9 @@ class Template:
 
                 if self.get_user_info(params):
                     time.sleep(1)
-
-                    self.sign_in(params)
+                    if self.sign_in(params):
+                        time.sleep(1)
+                        self.draw(params)
                     time.sleep(1)
                     self.get_ore_num(params)
                     time.sleep(1)
