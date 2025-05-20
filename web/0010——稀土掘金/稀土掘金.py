@@ -5,7 +5,7 @@
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 17:49
 # @文件介绍 :
-const $ = new Env('贴吧任务签到')
+const $ = new Env('稀土掘金')
 cron: 22 6 * * *
 """
 import json
