@@ -33,7 +33,6 @@ class TianYiYunPan:
         self.import_set = importlib.util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(self.import_set)
         self.import_set = self.import_set.ImportSet()
-        self.notify = self.import_set.import_notify()
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
         self.session = requests.Session()
@@ -119,11 +118,11 @@ class TianYiYunPan:
                         self.session.get(r.json().get('toUrl'))
                         self.config_option.write_config(user, 'cookies', json.dumps(self.session.cookies.get_dict()))
                     else:
-                        raise Exception(f"没有找到url:{r.json()['msg']}")
+                        raise Exception(f"没有找到url-1:{r.json()['msg']}")
                 else:  # 如果没有找到匹配
-                    raise Exception("没有找到url")
+                    raise Exception("没有找到url-2")
             else:  # 如果没有找到匹配
-                raise Exception("没有找到url")
+                raise Exception("没有找到url-3")
         else:
             self.initialize.info_message("cookie还未失效")
 
@@ -211,7 +210,6 @@ class TianYiYunPan:
             self.config_option.write_config("账户1", "cookies", "")
 
     def main(self):
-        self.initialize.init()  # 初始化日志系统
         # 判断是否存在文件
         sections = self.config_option.read_config_key()
         for index, section in enumerate(sections):
