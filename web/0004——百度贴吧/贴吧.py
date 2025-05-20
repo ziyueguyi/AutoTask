@@ -4,7 +4,7 @@
 # @文件名称 :贴吧.py
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 11:04
-# @文件介绍 :
+# @文件介绍 :网页登录稀土掘金账号，只需要cookies的BDUSS和CUID即可：{"BDUSS":"","CUID":""}
 new Env('百度贴吧');
 cron: 20 6 * * *
 """
@@ -120,11 +120,14 @@ class PostBar:
         for ind, sec in enumerate(account_list):
             self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
             self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
-            tbs = self.get_tbs()
-            if tbs:
-                time.sleep(random.randint(1, 2))
-                bar_list = self.get_follow_bar()
-                self.sign_bar(bar_list, tbs)
+            try:
+                tbs = self.get_tbs()
+                if tbs:
+                    time.sleep(random.randint(1, 2))
+                    bar_list = self.get_follow_bar()
+                    self.sign_bar(bar_list, tbs)
+            except BaseException as e:
+                self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("贴吧签到结束")
         self.initialize.send_notify("「贴吧」")
 

@@ -4,7 +4,7 @@
 # @文件名称 :贴吧任务签到.py
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 17:11
-# @文件介绍 :
+# @文件介绍 :网页登录稀土掘金账号，只需要cookies的BDUSS和CUID即可：{"BDUSS":"","CUID":""}
 new Env('贴吧任务签到')
 cron: 19 6 * * *
 """
@@ -110,12 +110,15 @@ class PostBar:
         for ind, sec in enumerate(account_list):
             self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
             self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
-            user_name, tbs = self.get_user_info()
-            if user_name:
-                time.sleep(1)
-                self.sign(tbs, user_name, sec)
-                time.sleep(1)
-                self.get_point()
+            try:
+                user_name, tbs = self.get_user_info()
+                if user_name:
+                    time.sleep(1)
+                    self.sign(tbs, user_name, sec)
+                    time.sleep(1)
+                    self.get_point()
+            except BaseException as e:
+                self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("贴吧签到结束")
         self.initialize.send_notify("「贴吧签到」")
 

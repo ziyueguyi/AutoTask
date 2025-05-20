@@ -4,7 +4,7 @@
 # @文件名称 :稀土掘金.py
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 17:49
-# @文件介绍 :
+# @文件介绍 :网页登录稀土掘金账号，只需要cookies的sessionid和任意请求的params参数即可：{"aid": "","uuid":"","spider":"0","msToken":"","a_bogus":""}
 const $ = new Env('稀土掘金')
 cron: 22 6 * * *
 """

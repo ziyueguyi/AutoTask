@@ -51,7 +51,7 @@ class Template:
             try:
                 pass
             except Exception as e:
-                self.initialize.error_message(e)
+                self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("签到结束")
         self.initialize.send_notify("")
 
