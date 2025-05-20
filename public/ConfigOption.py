@@ -13,7 +13,7 @@ from pathlib import Path
 class ConfigOption:
     def __init__(self, file_path):
         self.file_path = file_path
-        self.config = configparser.ConfigParser()
+        self.config = configparser.ConfigParser(interpolation=None)
 
     def write_config(self, section, key, val=None, file_path=None):
         """

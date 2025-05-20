@@ -21,10 +21,15 @@ class Template:
         self.import_set = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(self.import_set)
         self.import_set = self.import_set.ImportSet()
-        self.notify = self.import_set.import_notify()
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
         self.session = requests.Session()
+        self.session.headers.update({
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            "Content-type": "application/json",
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+        })
         self.init_config()
 
     def init_config(self):
@@ -37,7 +42,16 @@ class Template:
             self.config_option.write_config("账户1", "cookies", "")
 
     def run(self):
-        pass
+        self.initialize.info_message("")
+        account_list = self.config_option.read_config_key()
+        for ind, sec in enumerate(account_list):
+            self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
+            try:
+                pass
+            except Exception as e:
+                self.initialize.error_message(e)
+        self.initialize.info_message("")
+        self.initialize.send_notify("")
 
 
 if __name__ == '__main__':

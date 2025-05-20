@@ -25,7 +25,6 @@ class PostBar:
         self.import_set = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(self.import_set)
         self.import_set = self.import_set.ImportSet()
-        self.notify = self.import_set.import_notify()
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
         self.session = requests.Session()
