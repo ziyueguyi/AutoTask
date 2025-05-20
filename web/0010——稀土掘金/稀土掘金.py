@@ -42,6 +42,7 @@ class Template:
                 "账户1", "params", "")
             self.initialize.info_message("请配置账户信息")
             exit()
+
     def get_cookies_status(self):
         """
         获取cookies状态
@@ -85,24 +86,37 @@ class Template:
         if response.status_code == 200 and response.json()["err_no"] == 0:
             self.initialize.info_message(f"签到成功", is_flag=True)
             self.initialize.info_message(f"获得矿石：{response.json()['data']['incr_point']}颗", is_flag=True)
+            self.draw(params)
         elif response.status_code == 200 and response.json()["err_no"] == 15001:
             self.initialize.info_message("今日已签到", is_flag=True)
             self.initialize.info_message(f"获得矿石：-颗", is_flag=True)
         else:
             self.initialize.error_message(f"未知错误:{response.text}")
 
-    def get_ore_num(self,params):
+    def get_ore_num(self, params):
         response = self.session.get("https://api.juejin.cn/growth_api/v1/get_cur_point", params=params)
         if response.status_code == 200 and response.json()["err_no"] == 0:
             self.initialize.info_message(f"矿石总量：{response.json()['data']}颗", is_flag=True)
         else:
             self.initialize.error_message(f"未知错误:{response.text}")
 
-    def get_sign_day(self,params):
+    def get_sign_day(self, params):
         response = self.session.get("https://api.juejin.cn/growth_api/v1/get_counts", params=params)
         if response.status_code == 200 and response.json()["err_no"] == 0:
             self.initialize.info_message(f"连续签到：{response.json()['data']['cont_count']}天", is_flag=True)
             self.initialize.info_message(f"累计签到：{response.json()['data']['sum_count']}天", is_flag=True)
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}")
+
+    def draw(self, params):
+        """
+        每天抽奖
+        :param params:
+        :return:
+        """
+        response = self.session.post("https://api.juejin.cn/growth_api/v1/lottery/draw", json={}, params=params)
+        if response.status_code == 200 and response.json()["err_no"] == 0:
+            self.initialize.info_message(f"抽奖所得：{response.json()['data']['lottery_name']}", is_flag=True)
         else:
             self.initialize.error_message(f"未知错误:{response.text}")
 
