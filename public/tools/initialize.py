@@ -82,7 +82,7 @@ class ImportSet:
         :return:
         """
         msg = '\n'.join(self.message_list)
-        self.notify.Notify().send(title, msg)
+        self.notify.Notify().send(f"【{title}】", msg)
 
     def init(self):
         """

@@ -120,7 +120,7 @@ class PostBar:
             except BaseException as e:
                 self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("贴吧签到结束")
-        self.initialize.send_notify("「贴吧签到」")
+        self.initialize.send_notify("贴吧签到")
 
 
 if __name__ == '__main__':

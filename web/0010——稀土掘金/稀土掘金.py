@@ -146,7 +146,7 @@ class Template:
             except Exception as e:
                 self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("稀土掘金签到结束")
-        self.initialize.send_notify("「稀土掘金」")
+        self.initialize.send_notify("稀土掘金")
 
 
 if __name__ == '__main__':
