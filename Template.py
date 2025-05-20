@@ -44,7 +44,7 @@ class Template:
             exit()
 
     def run(self):
-        self.initialize.info_message("")
+        self.initialize.info_message("签到开始")
         account_list = self.config_option.read_config_key()
         for ind, sec in enumerate(account_list):
             self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
@@ -52,7 +52,7 @@ class Template:
                 pass
             except Exception as e:
                 self.initialize.error_message(e)
-        self.initialize.info_message("")
+        self.initialize.info_message("签到结束")
         self.initialize.send_notify("")
 
 
