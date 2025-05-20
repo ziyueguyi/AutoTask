@@ -40,7 +40,8 @@ class Template:
         if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
             self.config_option.write_config("账户1", "switch", "0").write_config("账户1", "cookies", "").write_config(
                 "账户1", "params", "")
-
+            self.initialize.info_message("请配置账户信息")
+            exit()
     def get_cookies_status(self):
         """
         获取cookies状态

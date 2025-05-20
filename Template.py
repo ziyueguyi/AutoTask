@@ -40,6 +40,8 @@ class Template:
         if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
             self.config_option.write_config("账户1", "switch", "0")
             self.config_option.write_config("账户1", "cookies", "")
+            self.initialize.info_message("请配置账户信息")
+            exit()
 
     def run(self):
         self.initialize.info_message("")

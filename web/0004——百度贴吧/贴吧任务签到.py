@@ -44,9 +44,9 @@ class PostBar:
         :return:
         """
         if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
-            self.config_option.write_config("账户1", "switch", "0")
-            self.config_option.write_config("账户1", "cookies", "")
-
+            self.config_option.write_config("账户1", "switch", "0").write_config("账户1", "cookies", "")
+            self.initialize.info_message("请配置账户信息")
+            exit()
     def get_user_info(self):
         user_url = f'{self.baseUrl}/mo/q/usergrowth/showUserGrowth?client_type=2&client_version=12.60.1.2'
         response = self.session.get(user_url)
