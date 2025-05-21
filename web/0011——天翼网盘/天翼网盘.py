@@ -149,7 +149,7 @@ class TianYiYunPan:
         net_disk = response.json().get('netdiskBonus')
         is_sign = response.json().get('isSign')
         flag = '已' if is_sign else '未'
-        self.initialize.info_message(f'{username}:{flag}签到过,已获得{net_disk}M空间')
+        self.initialize.info_message(f'{username}:{flag}签到过,已获得{net_disk}M空间', is_flag=True)
         return is_sign
 
     def cookie_status(self, user):
@@ -195,7 +195,7 @@ class TianYiYunPan:
                 while num < 4 and not is_sign:
                     response = self.session.get(url, headers=headers, params=params[num])
                     description = response.text if "errorCode" in response.text else f"获得{response.json()['description']}M空间"
-                    self.initialize.info_message(f"第{num}次抽奖，{description}")
+                    self.initialize.info_message(f"第{num}次抽奖，{description}", is_flag=True)
                     num += 1
             else:
                 self.initialize.error_message("天翼云盘:账号或密码不能为空")
@@ -211,13 +211,14 @@ class TianYiYunPan:
 
     def main(self):
         # 判断是否存在文件
+        self.initialize.info_message("天翼网盘签到开始")
         sections = self.config_option.read_config_key()
         for index, section in enumerate(sections):
-            if not self.config_option.read_config_key(section, 'switch', field_type=bool):
-                self.initialize.error_message(f'😢第{index + 1}个 switch值为False，不进行任务，跳过该账号')
-            else:
+            if self.config_option.read_config_key(section, 'switch', field_type=bool):
                 self.sign_in(section)
-            self.initialize.message("\n")
+            else:
+                self.initialize.error_message(f'😢第{index + 1}个 switch值为False，不进行任务，跳过该账号')
+            self.initialize.info_message("天翼网盘签到结束")
         self.initialize.send_notify("天翼网盘")  # 发送通知
 
 
