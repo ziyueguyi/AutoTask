@@ -4,8 +4,8 @@
 # @文件名称 :Template.py
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 11:04
-# @文件介绍 :
-const $ = new Env('贴吧任务签到')
+# @文件介绍 :样例
+const $ = new Env('样例')
 cron: 19 7 * * *
 """
 from importlib import util
@@ -53,7 +53,7 @@ class Template:
             except Exception as e:
                 self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("签到结束")
-        self.initialize.send_notify("")
+        self.initialize.send_notify("样例")
 
 
 if __name__ == '__main__':

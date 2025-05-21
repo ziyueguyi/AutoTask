@@ -87,17 +87,17 @@ class Template:
         url = "https://pan.baidu.com/rest/2.0/membership/level"
         params = {"app_id": "250528", "web": "5", "method": "signin"}
         response = self.session.get(url, params=params)
-        print(response.json())
         if response.status_code == 200:
             data = response.json()
-            if data.get("error_code") == 421003:
+            if data.get("error_code") == 0:
+                self.initialize.info_message(f"签到成功：获得积分: {data.get('result').get('points')}", is_flag=True)
+            elif data.get("error_code") == 421003:
                 self.initialize.error_message(f"签到失败：该账号不是svip", is_flag=True)
-            if data.get("error_code") == 421001:
+            elif data.get("error_code") == 421001:
                 self.initialize.error_message(f"签到失败：请勿重复签到", is_flag=True)
-            else:
-                sign_point = re.search(r'points":(\d+)', response.text)
-                self.initialize.info_message(f"签到成功：获得积分: {sign_point}", is_flag=True)
             # 只有当有错误信息时才输出
+            else:
+                self.initialize.error_message(f"签到失败：{data.get('show_msg')}", is_flag=True)
         else:
             self.initialize.error_message(f"签到失败： {response.text}", is_flag=True)
 
@@ -127,13 +127,11 @@ class Template:
         url = "https://pan.baidu.com/act/v2/membergrowv2/answerquestion"
         params = {"app_id": "250528", "web": "5", "answer": answer, "ask_id": ask_id}
         response = self.session.get(url, params=params)
-        print(response.json())
         if response.status_code == 200:
-            if response.json().get("errno") == 9502:
+            if response.json().get("errno") == 0:
+                self.initialize.info_message(f"获得积分：{response.json().get('data').get('score')}", is_flag=True)
+            elif response.json().get("errno") == 9502:
                 self.initialize.error_message(f"回答失败:已超出当天回答上限", is_flag=True)
-            elif response.json().get("data").get("answer_status") == 1:
-                data = response.json().get("data")
-                self.initialize.info_message(f"获得积分：{data.get('score')}", is_flag=True)
             else:
                 self.initialize.error_message(f"回答失败: {response.json().get('show_msg')}", is_flag=True)
         else:
