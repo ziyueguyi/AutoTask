@@ -9,7 +9,6 @@ const $ = new Env('百度网盘')
 cron: 19 7 * * *
 """
 import json
-import re
 import time
 from datetime import datetime
 from importlib import util
