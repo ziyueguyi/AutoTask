@@ -185,7 +185,7 @@ class Template:
             msg += f"热心值:{ul.xpath('li/em[normalize-space()="热心值:"]/following-sibling::text()[1]')[0].strip():10s}\t"
             msg += f"违规值:{ul.xpath('li/em[normalize-space()="违规:"]/following-sibling::text()[1]')[0].strip():10s}\t"
             msg += f"积分点:{ul.xpath('li/em[normalize-space()="积分:"]/following-sibling::text()[1]')[0].strip():10s}\t"
-            self.initialize.info_message(msg)
+            self.initialize.info_message(msg,  is_flag=True)
         else:
             self.initialize.error_message("获取账号信息失败", is_flag=True)
 
