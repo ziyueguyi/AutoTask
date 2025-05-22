@@ -109,7 +109,7 @@ class Template:
             self.initialize.error_message(f"账号签到失败", is_flag=True)
 
     def run(self):
-        self.initialize.info_message("签到开始")
+        self.initialize.info_message("吾爱破解签到开始")
         account_list = self.config_option.read_config_key()
         for ind, sec in enumerate(account_list):
             self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
@@ -162,8 +162,8 @@ class Template:
                 # self.sign()
             except Exception as e:
                 self.initialize.error_message(e.__str__(), is_flag=True)
-        self.initialize.info_message("签到结束")
-        self.initialize.send_notify("样例")
+        self.initialize.info_message("吾爱破解签到结束")
+        self.initialize.send_notify("吾爱破解")
 
     def get_account_info(self):
         params = {
