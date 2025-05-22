@@ -9,6 +9,8 @@ const $ = new Env('稀土掘金')
 cron: 22 6 * * *
 """
 import json
+import random
+import re
 import time
 from importlib import util
 from pathlib import Path
@@ -83,10 +85,10 @@ class Template:
 
     def sign_in(self, params):
         response = self.session.post("https://api.juejin.cn/growth_api/v1/check_in", json={}, params=params)
+        time.sleep(1)
         if response.status_code == 200 and response.json()["err_no"] == 0:
             self.initialize.info_message(f"签到成功", is_flag=True)
             self.initialize.info_message(f"获得矿石：{response.json()['data']['incr_point']}颗", is_flag=True)
-
             return True
         elif response.status_code == 200 and response.json()["err_no"] == 15001:
             self.initialize.info_message("今日已签到", is_flag=True)
@@ -122,6 +124,362 @@ class Template:
         else:
             self.initialize.error_message(f"未知错误:{response.text}")
 
+    def get_article_list(self, params):
+        """
+        获取文章列表并进行点赞
+        :param params:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+
+        json_data = {
+            "id_type": 2,
+            "sort_type": 200,
+            "cate_id": "6809637769959178254",
+            "cursor": "0",
+            "limit": 20
+        }
+        url = "https://api.juejin.cn/recommend_api/v1/article/recommend_all_feed"
+        response = self.session.post(url, params=params, json=json_data, )
+        if response.status_code == 200 and response.json()["err_msg"] == "success":
+            data = response.json()["data"]
+            data = list(filter(lambda x: x['item_info'].get('article_info', {}).get('comment_count', 0) > 1, data))
+            article_list = map(lambda x: x['item_info'].get('article_info', {}), random.choices(data, k=2))
+            c_num = c_num_c = num_c = num = 0
+
+            for al in article_list:
+                self.initialize.info_message(f"开始点赞并收藏文章：{al['title']}({al['article_id']})")
+                article_flag = self.like_article(params, al['article_id'])
+                if article_flag:
+                    num += 1
+                    time.sleep(random.randint(3, 5))
+                    num_c += self.cancel_article(params, al['article_id'])
+                time.sleep(random.randint(3, 5))
+                collect_id = self.get_favorites(params, al['article_id'])
+                time.sleep(random.randint(1, 2))
+                if collect_id and self.collect_article(params, al['article_id'], collect_id):
+                    c_num += 1
+                    time.sleep(random.randint(3, 5))
+                    c_num_c += self.cal_collect_article(params, al['article_id'])
+            self.initialize.info_message(f"文章数量：2，点赞成功数量：{num}，取消数量：{num_c}", is_flag=True)
+            self.initialize.info_message(f"文章数量：2，收藏成功数量：{c_num}，取消数量：{c_num_c}", is_flag=True)
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}")
+        time.sleep(random.randint(2, 5))
+
+    def like_article(self, params, item_id):
+        """
+        点赞文章
+        :param params:
+        :param item_id:
+        :return:
+        """
+        json_data = {
+            'item_id': item_id,
+            'item_type': 2,
+            'client_type': 2608,
+        }
+        url = 'https://api.juejin.cn/interact_api/v1/digg/save'
+        response = self.session.post(url, params=params, json=json_data, )
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            self.initialize.info_message(f"点赞文章成功")
+            return True
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}")
+            return False
+
+    def collect_article(self, params, article_id, collect_id):
+        """
+        收藏文章到收藏夹
+        :param params:
+        :param article_id:
+        :param collect_id:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+
+        json_data = {
+            'article_id': article_id,
+            'select_collection_ids': [
+                collect_id,
+            ],
+            'unselect_collection_ids': [],
+            'is_collect_fast': False,
+        }
+        url = 'https://api.juejin.cn/interact_api/v2/collectionset/add_article'
+        response = self.session.post(url, params=params, json=json_data, )
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            self.initialize.info_message(f"收藏文章成功")
+            return True
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}")
+            return False
+
+    def get_favorites(self, params, article_id):
+        """
+        获取收藏夹
+        :param params:
+        :param article_id:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+        url = 'https://api.juejin.cn/interact_api/v2/collectionset/list'
+        json_data = {
+            "limit": 10,
+            "cursor": "0",
+            "article_id": article_id
+        }
+        response = self.session.post(url, params=params, json=json_data, )
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            data = list(filter(lambda x: x['is_default'], response.json()["data"]))
+            if len(data) > 0:
+                self.initialize.info_message(f"收藏夹名称：{data[0]['collection_name']}")
+                return data[0]['collection_id']
+            else:
+                self.initialize.info_message(f"没有收藏夹")
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}")
+        return False
+
+    def cal_collect_article(self, params, article_id):
+        """
+        取消收藏文章
+        :param params:
+        :param article_id:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+        json_data = {
+            "article_id": article_id
+        }
+        url = 'https://api.juejin.cn/interact_api/v2/collectionset/delete_article'
+        response = self.session.post(url, params=params, json=json_data, )
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            self.initialize.info_message(f"取消收藏成功")
+            return 1
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}")
+            return 0
+
+    def cancel_article(self, params, item_id):
+        """
+        取消点赞
+        :param params:
+        :param item_id:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+
+        json_data = {
+            'item_id': item_id,
+            'item_type': 2,
+            'client_type': 2608,
+        }
+        url = 'https://api.juejin.cn/interact_api/v1/digg/cancel'
+        response = self.session.post(url, params=params, json=json_data, )
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            self.initialize.info_message(f"取消点赞成功")
+            return 1
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}")
+            return 0
+
+    def like_boiling_point(self, params, item_id):
+        """
+        点赞沸点
+        :param params:
+        :param item_id:
+        :return:
+        """
+        json_data = {
+            "item_id": item_id,
+            "item_type": 4,
+            "client_type": 2608
+        }
+        url = 'https://api.juejin.cn/interact_api/v1/digg/save'
+        response = self.session.post(url, params=params, json=json_data)
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            self.initialize.info_message(f"点赞成功")
+            return True
+        else:
+            self.initialize.error_message(f"点赞沸点失败", is_flag=True)
+            self.initialize.error_message(f"未知错误:{response.text}")
+            return False
+
+    def cancel_boiling_point(self, params, item_id):
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+
+        json_data = {
+            "item_id": item_id,
+            "item_type": 4,
+            "client_type": 2608
+        }
+        url = 'https://api.juejin.cn/interact_api/v1/digg/cancel'
+        response = self.session.post(url, params=params, json=json_data)
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            self.initialize.info_message(f"取消点赞成功")
+            return 1
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}")
+            return 0
+
+    def get_hot_boiling_point(self, params):
+        """
+        获得沸点并点赞
+        :param params:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+
+        json_data = {
+            'id_type': 4,
+            'sort_type': 200,
+            'cursor': '0',
+            'limit': 20,
+        }
+        url = 'https://api.juejin.cn/recommend_api/v1/short_msg/hot'
+        response = self.session.post(url, params=params, json=json_data, )
+        if response.status_code == 200 and response.json()["err_msg"] == "success":
+            data = response.json()["data"]
+            boiling_point_list = filter(lambda x: not x['author_user_info']['isfollowed'], random.choices(data, k=2))
+            f_num = f_num_c = num_c = num = 0
+            for ppl in boiling_point_list:
+                time.sleep(random.randint(3, 5))
+                self.initialize.info_message(f"点赞沸点：{ppl['msg_Info']['content']}")
+                if self.like_boiling_point(params, ppl['msg_id']):
+                    time.sleep(random.randint(3, 5))
+                    num_c += self.cancel_boiling_point(params, ppl['msg_id'])
+                    num += 1
+                self.initialize.info_message(f"关注掘友：{ppl['author_user_info']['user_name']}")
+                time.sleep(random.randint(3, 5))
+                if self.follow_digging_friends(params, ppl['author_user_info']['user_id']):
+                    time.sleep(random.randint(3, 5))
+                    f_num_c += self.cal_follow_digging_friends(params, ppl['author_user_info']['user_id'])
+                    f_num += 1
+            self.initialize.info_message(f"沸点数量：2，点赞成功数量：{num}，取消成功：{num_c}", is_flag=True)
+            self.initialize.info_message(f"关注作者：2，关注成功数量：{f_num}，取消成功：{f_num_c}", is_flag=True)
+        else:
+            self.initialize.error_message(f"未知错误:{response.text}", is_flag=True)
+        time.sleep(random.randint(2, 5))
+
+    def follow_digging_friends(self, params, msg_id):
+        """
+        关注掘友
+        :param params:
+        :param msg_id:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+
+        json_data = {
+            'id': '641770521633085',
+            'type': 1,
+        }
+        url = 'https://api.juejin.cn/interact_api/v1/follow/do'
+        response = self.session.post(url, params=params, json=json_data)
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            self.initialize.info_message(f"关注成功")
+            return True
+        else:
+            self.initialize.error_message(f"关注失败：{response.text}")
+        return False
+
+    def send_boiling_point(self, params):
+        """
+        发送沸点
+        :param params:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+        for i in range(2):
+            num = 0
+            while True:
+                one = self.initialize.notify.Notify().one()
+                time.sleep(1)
+                if re.search(r'[党国政贪腐黄赌毒枪杀淫乱]', one):
+                    num += 1
+                    continue
+                elif num > 5:
+                    self.initialize.error_message(f"请勿发送敏感词", is_flag=True)
+                else:
+                    json_data = {
+                        'content': f'[7210002980895916043#挑战每日一条沸点#] {one}',
+                        'mentions': [],
+                        'sync_to_org': False,
+                        'theme_id': '7210002980895916043',
+                    }
+                    url = 'https://api.juejin.cn/content_api/v1/short_msg/publish'
+                    response = self.session.post(url, params=params, json=json_data)
+                    if response.status_code == 200 and response.json()["err_msg"] == 'success':
+                        self.initialize.info_message(f"每日一言：{one}({response.json().get("msg_id")})")
+                        return response.json().get("msg_id")
+                    else:
+                        self.initialize.error_message(f"发送失败：{response.text}")
+                    break
+        time.sleep(1)
+
+    def cal_follow_digging_friends(self, params, msg_id):
+        """
+        取消关注的掘友
+        :param msg_id:
+        :param params:
+        :return:
+        """
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+
+        json_data = {
+            'id': '641770521633085',
+            'type': 1,
+        }
+        url = 'https://api.juejin.cn/interact_api/v1/follow/undo'
+        response = self.session.post(url, params=params, json=json_data)
+        if response.status_code == 200 and response.json()["err_msg"] == 'success':
+            self.initialize.info_message(f"取消关注成功")
+            return 1
+        else:
+            self.initialize.error_message(f"取消关注失败：{response.text}")
+        return 0
+
     def run(self):
         self.initialize.info_message("稀土掘金签到开始")
         account_list = self.config_option.read_config_key()
@@ -133,11 +491,12 @@ class Template:
                 self.session.cookies.update({'sid_tt': cookies, 'sessionid': cookies, 'sessionid_ss': cookies})
                 self.get_cookies_status()
                 time.sleep(1)
-
                 if self.get_user_info(params):
                     time.sleep(1)
+                    self.get_article_list(params)
+                    self.get_hot_boiling_point(params)
+                    self.send_boiling_point(params)
                     if self.sign_in(params):
-                        time.sleep(1)
                         self.draw(params)
                     time.sleep(1)
                     self.get_ore_num(params)

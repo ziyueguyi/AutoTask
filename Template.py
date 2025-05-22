@@ -3,10 +3,10 @@
 # @项目名称 :AutoTask
 # @文件名称 :Template.py
 # @作者名称 :sxzhang1
+# @任务名称：new Env('样例')
+# @任务时间：cron: 19 7 * * *
 # @日期时间 : 2025/5/19 11:04
 # @文件介绍 :样例
-const $ = new Env('样例')
-cron: 19 7 * * *
 """
 from importlib import util
 from pathlib import Path
