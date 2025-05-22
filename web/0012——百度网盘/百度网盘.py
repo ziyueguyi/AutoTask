@@ -90,7 +90,7 @@ class Template:
         if response.status_code == 200:
             data = response.json()
             if data.get("error_code") == 0:
-                self.initialize.info_message(f"签到成功：获得积分: {data.get('result').get('points')}", is_flag=True)
+                self.initialize.info_message(f"签到积分: {data.get('result').get('points')}", is_flag=True)
             elif data.get("error_code") == 421003:
                 self.initialize.error_message(f"签到失败：该账号不是svip", is_flag=True)
             elif data.get("error_code") == 421001:
@@ -129,7 +129,7 @@ class Template:
         response = self.session.get(url, params=params)
         if response.status_code == 200:
             if response.json().get("errno") == 0:
-                self.initialize.info_message(f"获得积分：{response.json().get('data').get('score')}", is_flag=True)
+                self.initialize.info_message(f"问题积分：{response.json().get('data').get('score')}", is_flag=True)
             elif response.json().get("errno") == 9502:
                 self.initialize.error_message(f"回答失败:已超出当天回答上限", is_flag=True)
             else:
