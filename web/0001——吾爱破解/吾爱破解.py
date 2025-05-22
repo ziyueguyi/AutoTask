@@ -5,25 +5,14 @@ File: 吾爱破解.py
 Author: WFRobert
 Date: 2023/3/9 15:01
 cron: 0 25 6 * * ?
-new Env('52pojie自动签到脚本');
+new Env('吾爱破解');
 Description: 52pojie自动签到,实现每日自动签到52pojie
 const $ = new Env('吾爱破解')
 cron: 19 7 * * *
 """
-import time
 
 from bs4 import BeautifulSoup
 from lxml import html
-
-"""
-# @项目名称 :AutoTask
-# @文件名称 :Template.py
-# @作者名称 :sxzhang1
-# @日期时间 : 2025/5/19 11:04
-# @任务名称：new Env('吾爱破解')
-# @任务时间：cron: 19 7 * * *
-# @文件介绍 :52pojie自动签到,实现每日自动签到52pojie
-"""
 
 from importlib import util
 from pathlib import Path
