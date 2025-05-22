@@ -13,6 +13,7 @@ cron: 19 7 * * *
 import time
 
 from bs4 import BeautifulSoup
+from lxml import html
 
 """
 # @项目名称 :AutoTask
@@ -66,6 +67,7 @@ class Template:
         url = "https://www.52pojie.cn/CSPDREL2hvbWUucGhwP21vZD10YXNrJmRvPWRyYXcmaWQ9Mg==?wzwscspd=MC4wLjAuMA=="
         response = self.session.get(url, allow_redirects=False)
         print(response.headers)
+
     def get_cookie1(self):
         """
         获取cookie
@@ -74,6 +76,7 @@ class Template:
         url = 'https://www.52pojie.cn/home.php?mod=task&do=apply&id=2&referer=%2F'
         response = self.session.get(url, allow_redirects=False)
         print(response.headers)
+
     def get_task_list(self):
         """
         获取任务列表
@@ -89,6 +92,7 @@ class Template:
         # r_data.find('p',class="emp")
         task_list = r_data.find("div", id="ct").find("p").text
         print(task_list)
+
     def sign(self):
         url = 'https://www.52pojie.cn/home.php?mod=task&do=draw&id=2'
         r = self.session.get(url)
@@ -148,17 +152,42 @@ class Template:
             }
             )
             try:
-                self.get_cookie()
-                time.sleep(1)
-                self.get_cookie1()
-                time.sleep(1)
-                self.get_task_list()
-                time.sleep(1)
-                self.sign()
+                self.get_account_info()
+                # self.get_cookie()
+                # time.sleep(1)
+                # self.get_cookie1()
+                # time.sleep(1)
+                # self.get_task_list()
+                # time.sleep(1)
+                # self.sign()
             except Exception as e:
                 self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("签到结束")
         self.initialize.send_notify("样例")
+
+    def get_account_info(self):
+        params = {
+            'mod': 'spacecp',
+            'ac': 'credit',
+            'showcredit': '1',
+        }
+        response = self.session.get('https://www.52pojie.cn/home.php', params=params)
+        tree = html.fromstring(response.text)
+        ul = tree.xpath('//ul[contains(@class, "creditl") and contains(@class, "bbda")]')
+        if ul:
+            ul = ul[0]
+            msg = "账号信息：\n"
+            msg += f"吾爱币:{ul.xpath('li/em[normalize-space()="吾爱币:"]/following-sibling::text()[1]')[0].strip():10s}\t"
+            msg += f"威望值:{ul.xpath('li/em[normalize-space()="威望:"]/following-sibling::text()[1]')[0].strip():10s}\t"
+            msg += f"贡献值:{ul.xpath('li/em[normalize-space()="贡献值:"]/following-sibling::text()[1]')[0].strip():10s}\t"
+            msg += f"悬赏值:{ul.xpath('li/em[normalize-space()="悬赏值:"]/following-sibling::text()[1]')[0].strip():10s}\n"
+            msg += f"采纳率:{ul.xpath('li/em[normalize-space()="采纳率:"]/following-sibling::text()[1]')[0].strip():10s}\t"
+            msg += f"热心值:{ul.xpath('li/em[normalize-space()="热心值:"]/following-sibling::text()[1]')[0].strip():10s}\t"
+            msg += f"违规值:{ul.xpath('li/em[normalize-space()="违规:"]/following-sibling::text()[1]')[0].strip():10s}\t"
+            msg += f"积分点:{ul.xpath('li/em[normalize-space()="积分:"]/following-sibling::text()[1]')[0].strip():10s}\t"
+            self.initialize.info_message(msg)
+        else:
+            self.initialize.error_message("获取账号信息失败", is_flag=True)
 
 
 if __name__ == '__main__':
