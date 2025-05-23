@@ -166,14 +166,15 @@ class Template:
         if ul:
             ul = ul[0]
             msg = "账号信息：\n"
-            msg += f"吾爱币:{ul.xpath('li/em[normalize-space()="吾爱币:"]/following-sibling::text()[1]')[0].strip():10s}\t"
-            msg += f"威望值:{ul.xpath('li/em[normalize-space()="威望:"]/following-sibling::text()[1]')[0].strip():10s}\t"
-            msg += f"贡献值:{ul.xpath('li/em[normalize-space()="贡献值:"]/following-sibling::text()[1]')[0].strip():10s}\t"
-            msg += f"悬赏值:{ul.xpath('li/em[normalize-space()="悬赏值:"]/following-sibling::text()[1]')[0].strip():10s}\n"
-            msg += f"采纳率:{ul.xpath('li/em[normalize-space()="采纳率:"]/following-sibling::text()[1]')[0].strip():10s}\t"
-            msg += f"热心值:{ul.xpath('li/em[normalize-space()="热心值:"]/following-sibling::text()[1]')[0].strip():10s}\t"
-            msg += f"违规值:{ul.xpath('li/em[normalize-space()="违规:"]/following-sibling::text()[1]')[0].strip():10s}\t"
-            msg += f"积分点:{ul.xpath('li/em[normalize-space()="积分:"]/following-sibling::text()[1]')[0].strip():10s}\t"
+            f_str = 'li/em[normalize-space()="{0}:"]/following-sibling::text()[1]'
+            msg += "吾爱币:{0:10s}\t".format(ul.xpath(f_str.format('吾爱币'))[0].strip())
+            msg  += "威望值:{0:10s}\t".format(ul.xpath(f_str.format('威望'))[0].strip())
+            msg  += "贡献值:{0:10s}\t".format(ul.xpath(f_str.format('贡献值'))[0].strip())
+            msg  += "悬赏值:{0:10s}\n".format(ul.xpath(f_str.format('悬赏值'))[0].strip())
+            msg  += "采纳率:{0:10s}\t".format(ul.xpath(f_str.format('采纳率'))[0].strip())
+            msg  += "热心值:{0:10s}\t".format(ul.xpath(f_str.format('热心值'))[0].strip())
+            msg  += "违规值:{0:10s}\t".format(ul.xpath(f_str.format('违规'))[0].strip())
+            msg  += "积分点:{0:10s}\t".format(ul.xpath(f_str.format('积分'))[0].strip())
             self.initialize.info_message(msg,  is_flag=True)
         else:
             self.initialize.error_message("获取账号信息失败", is_flag=True)
