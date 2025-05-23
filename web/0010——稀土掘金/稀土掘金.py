@@ -448,11 +448,11 @@ class Template:
                     url = 'https://api.juejin.cn/content_api/v1/short_msg/publish'
                     response = self.session.post(url, params=params, json=json_data)
                     if response.status_code == 200 and response.json()["err_msg"] == 'success':
-                        self.initialize.info_message(f"每日一言：{one}({response.json().get('msg_id')})")
+                        self.initialize.info_message(f"每日一言：{one}({response.json().get('msg_id')})", is_flag=True)
                     else:
                         self.initialize.error_message(f"发送失败：{response.text}")
                     break
-        self.initialize.info_message(f"发布沸点：2，发布成功：{num}，发布失败{2 - num}")
+        self.initialize.info_message(f"发布沸点：2，发布成功：{num}，发布失败{2 - num}", is_flag=True)
         time.sleep(1)
 
     def cal_follow_digging_friends(self, params, msg_id):
@@ -510,4 +510,6 @@ class Template:
 
 
 if __name__ == '__main__':
-    Template().run()
+    # Template().run()
+    one = Template().initialize.notify.Notify().one()
+    print(one)
