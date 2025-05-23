@@ -106,22 +106,22 @@ class PostBar:
                 'sign': hashlib.md5(f'kw={bl}tbs={tbs}tiebaclient!!!'.encode('utf-8')).hexdigest()
             }
             response = self.session.post('http://c.tieba.baidu.com/c/c/forum/sign', data=data)
-            msg = "\n贴吧名称：【{0}】\n".format(bl)
+            self.initialize.info_message("贴吧名称：【{0}】".format(bl), is_flag=True)
 
             if response.status_code == 200:
                 if response.json()['error_code'] == '0':
-                    msg += "签到状态：签到成功\n"
+                    self.initialize.info_message("签到状态：签到成功", is_flag=True)
                 elif response.json()['error_code'] == '160002':
-                    msg += "签到状态：重复签到\n"
+                    self.initialize.info_message("签到状态：重复签到", is_flag=True)
                 else:
-                    msg += "签到状态：签到失败\n"
+                    self.initialize.info_message("签到状态：未知错误", is_flag=True)
                     self.initialize.info_message(f"未知错误:{response.text}")
             else:
-                msg += "签到状态：签到失败\n"
-            msg += "贴吧经验：{0}\n".format(tie_info.get(bl, {}).get("经验值"))
-            msg += "等级称号：{0}\n".format(tie_info.get(bl, {}).get("等级称号"))
-            msg += "数字等级：{0}".format(tie_info.get(bl, {}).get("数字等级"))
-            self.initialize.info_message(msg, is_flag=True)
+                self.initialize.info_message("签到状态：签到失败", is_flag=True)
+            self.initialize.info_message("贴吧经验：{0}".format(tie_info.get(bl, {}).get("经验值")), is_flag=True)
+            self.initialize.info_message("等级称号：{0}".format(tie_info.get(bl, {}).get("等级称号")), is_flag=True)
+            self.initialize.info_message("数字等级：{0}".format(tie_info.get(bl, {}).get("数字等级")), is_flag=True)
+            self.initialize.info_message("*" * 25, is_flag=True)
 
     def get_status(self):
         """
