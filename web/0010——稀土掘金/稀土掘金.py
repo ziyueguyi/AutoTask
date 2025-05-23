@@ -431,10 +431,10 @@ class Template:
         for i in range(2):
             num = 0
             while True:
+                num += 1
                 one = self.initialize.notify.Notify().one()
                 time.sleep(1)
                 if re.search(r'[党国政贪腐黄赌毒枪杀淫乱]', one):
-                    num += 1
                     continue
                 elif num > 5:
                     self.initialize.error_message(f"请勿发送敏感词", is_flag=True)
@@ -449,7 +449,6 @@ class Template:
                     response = self.session.post(url, params=params, json=json_data)
                     if response.status_code == 200 and response.json()["err_msg"] == 'success':
                         self.initialize.info_message(f"每日一言：{one}({response.json().get('msg_id')})")
-                        num += 1
                     else:
                         self.initialize.error_message(f"发送失败：{response.text}")
                     break
