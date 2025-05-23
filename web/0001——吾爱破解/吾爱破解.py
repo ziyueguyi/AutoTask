@@ -18,7 +18,7 @@ from lxml import html
 from importlib import util
 from pathlib import Path
 
-import requests
+from curl_cffi import requests
 
 
 class Template:
