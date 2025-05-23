@@ -16,6 +16,7 @@ from importlib import util
 from pathlib import Path
 from fake_useragent import UserAgent  # pip install fake-useragent
 from curl_cffi import requests
+from lxml import html
 
 
 class PostBar:
@@ -90,11 +91,12 @@ class PostBar:
         finally:
             return bar_list
 
-    def sign_bar(self, bar_list, tbs):
+    def sign_bar(self, bar_list, tbs, tie_info):
         """
         贴吧签到
         :param bar_list:贴吧名称
         :param tbs:
+        :param tie_info:
         :return:
         """
         for bl in bar_list:
@@ -104,15 +106,53 @@ class PostBar:
                 'sign': hashlib.md5(f'kw={bl}tbs={tbs}tiebaclient!!!'.encode('utf-8')).hexdigest()
             }
             response = self.session.post('http://c.tieba.baidu.com/c/c/forum/sign', data=data)
+            msg = "\n贴吧名称：【{0}】\n".format(bl)
+
             if response.status_code == 200:
                 if response.json()['error_code'] == '0':
-                    self.initialize.info_message(f"贴吧【{bl}】签到成功", is_flag=True)
+                    msg += "签到状态：签到成功\n"
                 elif response.json()['error_code'] == '160002':
-                    self.initialize.info_message(f"贴吧【{bl}】已经签过到了", is_flag=True)
+                    msg += "签到状态：重复签到\n"
                 else:
-                    self.initialize.info_message("未知错误", is_flag=True)
+                    msg += "签到状态：签到失败\n"
+                    self.initialize.info_message(f"未知错误:{response.text}")
             else:
-                self.initialize.error_message(f"贴吧【{bl}】签到失败", is_flag=True)
+                msg += "签到状态：签到失败\n"
+            msg += "贴吧经验：{0}\n".format(tie_info.get(bl, {}).get("经验值"))
+            msg += "等级称号：{0}\n".format(tie_info.get(bl, {}).get("等级称号"))
+            msg += "数字等级：{0}".format(tie_info.get(bl, {}).get("数字等级"))
+            self.initialize.info_message(msg, is_flag=True)
+
+    def get_status(self):
+        """
+        获取关注贴吧信息
+
+        """
+        params = {
+            'v': int(time.time() * 1000),
+        }
+        response = self.session.get('https://tieba.baidu.com/f/like/mylike', params=params)
+        tie_info = {}
+        if response.status_code == 200:
+            tree = html.fromstring(response.text)
+            # 定位 tbody 下的所有 tr 行
+            rows = tree.xpath('//div[@class="forum_table"]/table//tr[not(./th)]')
+            for row in rows:
+                bar_name = row.xpath('.//a[@title]/text()')
+                exp = row.xpath('.//a[@class="cur_exp"]/text()')
+                badge_title = row.xpath('.//div[@class="like_badge_title"]/text()')
+                badge_level = row.xpath('.//div[@class="like_badge_lv"]/text()')
+                tie_info.update({
+                    bar_name[0]: {
+                        "经验值": exp[0],
+                        "等级称号": badge_title[0],
+                        "数字等级": badge_level[0],
+                    }
+                })
+            self.initialize.info_message("获取贴吧状态成功")
+        else:
+            self.initialize.error_message("获取贴吧状态失败")
+        return tie_info
 
     def run(self):
         self.initialize.info_message("贴吧签到开始")
@@ -125,7 +165,8 @@ class PostBar:
                 if tbs:
                     time.sleep(random.randint(1, 2))
                     bar_list = self.get_follow_bar()
-                    self.sign_bar(bar_list, tbs)
+                    tie_info = self.get_status()
+                    self.sign_bar(bar_list, tbs, tie_info)
             except BaseException as e:
                 self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("贴吧签到结束")
