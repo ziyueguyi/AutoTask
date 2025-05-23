@@ -10,6 +10,7 @@ Description: 52pojie自动签到,实现每日自动签到52pojie
 const $ = new Env('吾爱破解')
 cron: 19 7 * * *
 """
+import json
 
 from bs4 import BeautifulSoup
 from lxml import html
@@ -102,44 +103,7 @@ class Template:
         account_list = self.config_option.read_config_key()
         for ind, sec in enumerate(account_list):
             self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
-            self.session.cookies.update({
-                'wzws_sessionid': 'oGgtY5eBMzNkMGYygDYwLjE5MC4yNTMuNTiCZGIxY2Fh',
-                'Hm_lvt_46d556462595ed05e05f009cdafff31a': '1745834615,1747805081',
-                'HMACCOUNT': 'E0411248A37880DB',
-                'wzws_sid': 'a114e8514383f6844246a86c3db046f896354f6694e194ea55d07cba7596794bbb5f2e0b32c580af39a61e0d3c6512921911e43422e36ada90e83f4fe0100f58f8a3422bb6c2d429abbc60a8b28be60c6f5032834aed9abed3b9f96cefed104f543470583c5b2b34742ec1e672ec96c9',
-                'htVC_2132_saltkey': 'Ndif1oDp',
-                'htVC_2132_lastvisit': '1747802125',
-                'htVC_2132_seccodecSAm7L': '2552298.5c6aad293b179bc643',
-                'htVC_2132_seccodecSAm7LSlO': '2552299.796a85b9cf3ce8b19d',
-                'htVC_2132_ulastactivity': '1747805816%7C0',
-                'htVC_2132_auth': '9f4fBrBqCgO1%2FuCpW2o%2BkcjEq2%2BAJFmOYfbY4jBA%2BKxnKiWqFCc1x%2FCFyMP73%2F1aH6KqZNODckb7XRSL85P7ZHF33xWh',
-                'htVC_2132_resendemail': '1747805816',
-                'htVC_2132_sid': '0',
-                'htVC_2132_nofavfid': '1',
-                'htVC_2132_noticonf': '2400245D1D3_3_1',
-                'htVC_2132_con_request_uri': 'https%3A%2F%2Fwww.52pojie.cn%2Fconnect.php%3Fmod%3Dlogin%26op%3Dcallback%26referer%3Dindex.php',
-                'htVC_2132_client_created': '1747805950',
-                'htVC_2132_client_token': '8E279D62E1C008747788E62B5E2CF068',
-                'htVC_2132_connect_js_name': 'user_bind',
-                'htVC_2132_connect_js_params': 'YToxOntzOjQ6InR5cGUiO3M6OToibG9naW5iaW5kIjt9',
-                'htVC_2132_connect_login': '1',
-                'htVC_2132_connect_is_bind': '1',
-                'htVC_2132_connect_uin': '8E279D62E1C008747788E62B5E2CF068',
-                'htVC_2132_stats_qc_reg': '3',
-                'htVC_2132_home_diymode': '1',
-                'htVC_2132_st_p': '2400245%7C1747806002%7C0872bfce25ad2a8cccb7b0bb2a7f7098',
-                'htVC_2132_viewid': 'tid_17688',
-                'htVC_2132_st_t': '2400245%7C1747806346%7C070b247afc5c270cf480a41fa650b956',
-                'htVC_2132_atarget': '1',
-                'htVC_2132_forum_lastvisit': 'D_8_1747806346',
-                'htVC_2132_visitedfid': '8D25',
-                'htVC_2132_seccodecSAY0z0': '2554953.0823f57fd7c3601ac8',
-                'htVC_2132_checkpm': '1',
-                'htVC_2132_lastcheckfeed': '2400245%7C1747806513',
-                'htVC_2132_lastact': '1747806523%09home.php%09space',
-                'Hm_lpvt_46d556462595ed05e05f009cdafff31a': '1747806527',
-            }
-            )
+            self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
             try:
                 self.get_account_info()
                 # self.get_cookie()
@@ -168,14 +132,14 @@ class Template:
             msg = "账号信息：\n"
             f_str = 'li/em[normalize-space()="{0}:"]/following-sibling::text()[1]'
             msg += "吾爱币:{0:10s}\t".format(ul.xpath(f_str.format('吾爱币'))[0].strip())
-            msg  += "威望值:{0:10s}\t".format(ul.xpath(f_str.format('威望'))[0].strip())
-            msg  += "贡献值:{0:10s}\t".format(ul.xpath(f_str.format('贡献值'))[0].strip())
-            msg  += "悬赏值:{0:10s}\n".format(ul.xpath(f_str.format('悬赏值'))[0].strip())
-            msg  += "采纳率:{0:10s}\t".format(ul.xpath(f_str.format('采纳率'))[0].strip())
-            msg  += "热心值:{0:10s}\t".format(ul.xpath(f_str.format('热心值'))[0].strip())
-            msg  += "违规值:{0:10s}\t".format(ul.xpath(f_str.format('违规'))[0].strip())
-            msg  += "积分点:{0:10s}\t".format(ul.xpath(f_str.format('积分'))[0].strip())
-            self.initialize.info_message(msg,  is_flag=True)
+            msg += "威望值:{0:10s}\t".format(ul.xpath(f_str.format('威望'))[0].strip())
+            msg += "贡献值:{0:10s}\t".format(ul.xpath(f_str.format('贡献值'))[0].strip())
+            msg += "悬赏值:{0:10s}\n".format(ul.xpath(f_str.format('悬赏值'))[0].strip())
+            msg += "采纳率:{0:10s}\t".format(ul.xpath(f_str.format('采纳率'))[0].strip())
+            msg += "热心值:{0:10s}\t".format(ul.xpath(f_str.format('热心值'))[0].strip())
+            msg += "违规值:{0:10s}\t".format(ul.xpath(f_str.format('违规'))[0].strip())
+            msg += "积分点:{0:10s}\t".format(ul.xpath(f_str.format('积分'))[0].strip())
+            self.initialize.info_message(msg, is_flag=True)
         else:
             self.initialize.error_message("获取账号信息失败", is_flag=True)
 
