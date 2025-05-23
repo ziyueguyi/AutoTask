@@ -447,7 +447,7 @@ class Template:
                     url = 'https://api.juejin.cn/content_api/v1/short_msg/publish'
                     response = self.session.post(url, params=params, json=json_data)
                     if response.status_code == 200 and response.json()["err_msg"] == 'success':
-                        self.initialize.info_message(f"每日一言：{one}({response.json().get("msg_id")})")
+                        self.initialize.info_message(f"每日一言：{one}({response.json().get('msg_id')})")
                         return response.json().get("msg_id")
                     else:
                         self.initialize.error_message(f"发送失败：{response.text}")
