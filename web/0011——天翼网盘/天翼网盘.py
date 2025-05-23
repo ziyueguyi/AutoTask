@@ -16,7 +16,7 @@ import re
 import time
 from pathlib import Path
 
-import requests
+from curl_cffi import requests
 import rsa
 
 BI_RM = list("0123456789abcdefghijklmnopqrstuvwxyz")
@@ -35,7 +35,13 @@ class TianYiYunPan:
         self.import_set = self.import_set.ImportSet()
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
-        self.session = requests.Session()
+        self.session = requests.Session(timeout=10)
+        self.session.headers.update({
+            # "Accept": "*/*",
+            # "Accept-Encoding": "gzip, deflate, br, zstd",
+            # "Content-type": "application/json",
+            # "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+        })
         self.init_config()
 
     def int2char(self, a):

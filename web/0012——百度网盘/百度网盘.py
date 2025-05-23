@@ -14,7 +14,7 @@ from datetime import datetime
 from importlib import util
 from pathlib import Path
 
-import requests
+from curl_cffi import requests
 
 
 class Template:
@@ -26,7 +26,7 @@ class Template:
         self.import_set = self.import_set.ImportSet()
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
-        self.session = requests.Session()
+        self.session = requests.Session(timeout=10)
         self.session.headers.update({
             "Accept": "*/*",
             "Accept-Encoding": "gzip, deflate, br, zstd",

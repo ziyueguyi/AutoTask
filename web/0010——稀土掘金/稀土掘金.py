@@ -15,7 +15,7 @@ import time
 from importlib import util
 from pathlib import Path
 
-import requests
+from  curl_cffi import requests
 
 
 class Template:
@@ -27,7 +27,7 @@ class Template:
         self.import_set = self.import_set.ImportSet()
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
-        self.session = requests.Session()
+        self.session = requests.Session(timeout=10)
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
         })
