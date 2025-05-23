@@ -31,8 +31,8 @@ class Template:
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
         self.session = requests.Session()
-        url = "http://{0}:{1}".format('114.231.45.243','8089')
-        urls = "https://{0}:{1}".format('114.231.45.243','8089')
+        url = "http://{0}:{1}".format('114.231.45.243', '8089')
+        urls = "https://{0}:{1}".format('114.231.45.243', '8089')
         self.session.proxies.update({'http': url, 'https': urls})
         self.session.headers.update({
             'Accept': '*/*',
@@ -127,7 +127,7 @@ class Template:
             'ac': 'credit',
             'showcredit': '1',
         }
-        response = self.session.get('https://www.52pojie.cn/home.php', params=params)
+        response = self.session.get('https://www.52pojie.cn/home.php', params=params, timeout=10)
         tree = html.fromstring(response.text)
         ul = tree.xpath('//ul[contains(@class, "creditl") and contains(@class, "bbda")]')
         if ul:
