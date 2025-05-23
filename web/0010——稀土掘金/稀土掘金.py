@@ -427,6 +427,7 @@ class Template:
             'uuid': params.get("uuid"),
             'spider': params.get("spider"),
         }
+        num = 0
         for i in range(2):
             num = 0
             while True:
@@ -448,10 +449,11 @@ class Template:
                     response = self.session.post(url, params=params, json=json_data)
                     if response.status_code == 200 and response.json()["err_msg"] == 'success':
                         self.initialize.info_message(f"每日一言：{one}({response.json().get('msg_id')})")
-                        return response.json().get("msg_id")
+                        num += 1
                     else:
                         self.initialize.error_message(f"发送失败：{response.text}")
                     break
+        self.initialize.info_message(f"发布沸点：2，发布成功：{num}，发布失败{2 - num}")
         time.sleep(1)
 
     def cal_follow_digging_friends(self, params, msg_id):
