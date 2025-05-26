@@ -483,6 +483,27 @@ class Template:
             self.initialize.error_message(f"取消关注失败：{response.text}")
         return 0
 
+    def message_info(self, params):
+
+        time.sleep(random.randint(2, 3))
+        params = {
+            'aid': params.get("aid"),
+            'uuid': params.get("uuid"),
+            'spider': params.get("spider"),
+        }
+
+        response = self.session.get('https://api.juejin.cn/interact_api/v1/message/count', params=params)
+        if response.status_code == 200:
+            data = response.json()["data"]["count"]
+            self.initialize.info_message(f"信息统计成功：", is_flag=True)
+            self.initialize.info_message(f"评论信息：{data.get('3')}", is_flag=True)
+            self.initialize.info_message(f"系统通知：{data.get('4')}", is_flag=True)
+            self.initialize.info_message(f"赞和收藏：{data.get('1')}", is_flag=True)
+            self.initialize.info_message(f"新增粉丝：{data.get('2')}", is_flag=True)
+            self.initialize.info_message(f"私信信息：{data.get('7')}", is_flag=True)
+        else:
+            self.initialize.error_message(f"获取消息数量失败：{response.text}")
+
     def run(self):
         self.initialize.info_message("稀土掘金签到开始")
         account_list = self.config_option.read_config_key()
@@ -496,15 +517,16 @@ class Template:
                 time.sleep(1)
                 if self.get_user_info(params):
                     time.sleep(1)
-                    self.get_article_list(params)
-                    self.get_hot_boiling_point(params)
-                    self.send_boiling_point(params)
                     if self.sign_in(params):
+                        self.get_article_list(params)
+                        self.get_hot_boiling_point(params)
+                        self.send_boiling_point(params)
                         self.draw(params)
-                    time.sleep(1)
-                    self.get_ore_num(params)
-                    time.sleep(1)
-                    self.get_sign_day(params)
+                        time.sleep(1)
+                        self.get_ore_num(params)
+                        time.sleep(1)
+                        self.get_sign_day(params)
+                    self.message_info(params)
             except Exception as e:
                 self.initialize.error_message(e.__str__(), is_flag=True)
         self.initialize.info_message("稀土掘金签到结束")
