@@ -510,6 +510,4 @@ class Template:
 
 
 if __name__ == '__main__':
-    # Template().run()
-    one = Template().initialize.notify.Notify().one()
-    print(one)
+    Template().run()
