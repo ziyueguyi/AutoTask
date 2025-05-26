@@ -15,7 +15,7 @@ import time
 from importlib import util
 from pathlib import Path
 
-from  curl_cffi import requests
+from curl_cffi import requests
 
 
 class Template:
@@ -118,6 +118,7 @@ class Template:
         :param params:
         :return:
         """
+        time.sleep(random.randint(3, 5))
         response = self.session.post("https://api.juejin.cn/growth_api/v1/lottery/draw", json={}, params=params)
         if response.status_code == 200 and response.json()["err_no"] == 0:
             self.initialize.info_message(f"抽奖所得：{response.json()['data']['lottery_name']}", is_flag=True)
@@ -427,13 +428,13 @@ class Template:
             'uuid': params.get("uuid"),
             'spider': params.get("spider"),
         }
-        num = 0
+        nums = 0
         for i in range(2):
             num = 0
             while True:
                 num += 1
+                time.sleep(random.randint(10, 30))
                 one = self.initialize.notify.Notify().one()
-                time.sleep(1)
                 if re.search(r'[党国政贪腐黄赌毒枪杀淫乱]', one):
                     continue
                 elif num > 5:
@@ -449,10 +450,11 @@ class Template:
                     response = self.session.post(url, params=params, json=json_data)
                     if response.status_code == 200 and response.json()["err_msg"] == 'success':
                         self.initialize.info_message(f"每日一言：{one}({response.json().get('msg_id')})", is_flag=True)
+                        nums += 1
                     else:
                         self.initialize.error_message(f"发送失败：{response.text}")
                     break
-        self.initialize.info_message(f"发布沸点：2，发布成功：{num}，发布失败{2 - num}", is_flag=True)
+        self.initialize.info_message(f"发布沸点：2，发布成功：{nums}，发布失败{2 - nums}", is_flag=True)
         time.sleep(1)
 
     def cal_follow_digging_friends(self, params, msg_id):
