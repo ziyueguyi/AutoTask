@@ -3,7 +3,7 @@
 # @项目名称 :AutoTask
 # @文件名称 :Template.py
 # @作者名称 :sxzhang1
-# @任务名称：new Env('样例')
+# @任务名称：name 样例
 # @任务时间：cron: 19 7 * * *
 # @日期时间 : 2025/5/19 11:04
 # @文件介绍 :样例
@@ -11,7 +11,7 @@
 from importlib import util
 from pathlib import Path
 
-import requests
+from curl_cffi import requests
 
 
 class Template:
@@ -23,7 +23,7 @@ class Template:
         self.import_set = self.import_set.ImportSet()
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
-        self.session = requests.Session()
+        self.session = requests.Session(timeout=10)
         self.session.headers.update({
             'Accept': '*/*',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
