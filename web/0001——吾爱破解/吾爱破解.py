@@ -11,16 +11,24 @@ const $ = new Env('吾爱破解')
 cron: 19 7 * * *
 """
 import json
+import os
 import random
-import subprocess
-import sys
 import time
 from importlib import util
 from pathlib import Path
 
+import undetected_chromedriver as uc
 from curl_cffi import requests
 from lxml import html
-from playwright.sync_api import sync_playwright, Page
+from selenium.webdriver.support.ui import WebDriverWait
+
+
+# 👇 禁止析构函数中的 quit()
+def noop(self):
+    pass
+
+
+uc.Chrome.__del__ = noop  # 👈 关键一行
 
 
 class Template:
@@ -88,7 +96,7 @@ class Template:
         return False
 
     @staticmethod
-    def convert_requests_cookies_to_playwright(requests_cookies):
+    def convert_session_cookies_to_selenium(requests_cookies):
         """
         coookies转换，转为playwright可用cookies
         :param requests_cookies:
@@ -108,110 +116,92 @@ class Template:
             })
         return cookies
 
-    @staticmethod
-    def bypass_anti_crawler(page: Page):
-        """
-        浏览器页面模拟，绕过js反扒检测
-        :param page:
-        :return:
-        """
-        """注入 JS 绕过反爬虫检测"""
-        page.add_init_script("""
-            // 删除 webdriver 标志
-            delete navigator.__proto__.webdriver;
-        window.devicePixelRatio = 1.25;
-            // 模拟浏览器的 getBattery API，用于绕过反爬虫检测。
-            // 返回一个 Promise，模拟电池信息（始终为固定值）。
-            navigator.__proto__.getBattery = () => Promise.resolve({
-                charging: true,                  // 电池正在充电
-                level: 0.7,                      // 电池电量为 70%
-                chargingTime: Infinity,          // 剩余充电时间为无限（表示已充满）
-                dischargingTime: null            // 放电时间未确定
-            });
-            
-            // 设置 window.__playwright_init__ 标志，表明页面由 Playwright 控制。
-            // 某些网站会检测此标志来判断是否是自动化行为，设置后可帮助绕过部分检测机制。
-            window.__playwright_init__ = true;
+    def take_screenshot(self, driver, step_name):
+        filename = f"{step_name}.png"
+        driver.save_screenshot(filename)
+        self.initialize.info_message(f"📸 已截图保存为：{filename}")
 
-            // 设置 window.chrome
-            window.chrome = {
-                runtime: {}
-            };
-
-            // 模拟 hardwareConcurrency
-            Object.defineProperty(navigator, 'hardwareConcurrency', {
-                value: 8,
-                configurable: false,
-                writable: false
-            });
-
-            Object.defineProperty(navigator, 'plugins', {
-                value: [1, 2, 3, 4, 5],
-            });
-            window.devicePixelRatio = 1.25;
-            // 模拟 language
-            Object.defineProperty(navigator, 'languages', {
-                value: ["zh-CN", "zh", "en-US", "en"],
-                configurable: false,
-                writable: false
-            });
-
-            // 模拟权限查询
-            const originalQuery = navigator.permissions.query;
-            navigator.permissions.query = (parameters) =>
-                parameters.name === 'notifications' ? Promise.resolve({ state: Notification.permission }) : originalQuery(parameters);
-
-            // 模拟媒体设备
-            navigator.mediaDevices.getUserMedia = () => Promise.resolve({});
-        """)
-        return page
-
-    def get_cookies(self):
+    def get_cookie(self):
         """
         获取加签的cookies
         :return:
         """
-        playwright_cookies = self.convert_requests_cookies_to_playwright(self.session.cookies.jar)
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-infobars",
-                "--disable-automation"
-                "--disable-background-networking",
-                "--disable-expose-autofill-popup"
-            ])  # headless=True 表示无头模式
-            context = browser.new_context( accept_downloads=True, java_script_enabled=True)
-            # 设置 cookies
-            context.add_cookies(playwright_cookies)
-            # # 注入脚本，模拟浏览器指纹(可用)
-            page = self.bypass_anti_crawler(context.new_page())
-            page.set_viewport_size({"width": 1920, "height": 1080})
-            page.set_extra_http_headers({
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+        flag = False
+        cookies = self.convert_session_cookies_to_selenium(self.session.cookies.jar)
+        time.sleep(random.randint(1, 2))
+        driver = self.setup_browser(headless=True)  # 服务器部署时请保持 True
+        try:
+            driver.get("https://www.52pojie.cn/home.php?mod=task&item=new")
+            driver = self.load_cookies(driver, cookies)
+            self.wait_for_js_complete(driver)
+            time.sleep(5)
+            self.convert_selenium_cookies_to_session(driver)
+            self.take_screenshot(driver, "登录界面")
+            flag = True
+        except Exception as e:
+            self.initialize.error_message(f"❌ 获取 cookies 异常: {str(e)}")
+            self.take_screenshot(driver, "错误页面")
+        finally:
+            # 关闭浏览器驱动
+            driver.quit()
+            self.initialize.info_message("🚪 浏览器已关闭")
+            return flag
+
+    def convert_selenium_cookies_to_session(self, driver):
+        # 获取当前 cookies（Selenium 格式）
+        selenium_cookies = driver.get_cookies()
+
+        # 转换为 requests 可用格式
+        cookie_dict = {}
+        for cookie in selenium_cookies:
+            cookie_dict[cookie['name']] = cookie['value']
+
+        # 更新到 self.session 的 cookies 中
+        self.session.cookies.update(cookie_dict)
+        self.initialize.info_message("✅ 已将 Selenium Cookies 更新至 Session")
+
+    @staticmethod
+    def load_cookies(driver, cookies):
+        """
+        加载本地保存的 Cookies（用于保持登录状态）
+        """
+
+        for cookie in cookies:
+            if 'expiry' in cookie:
+                cookie['expirationDate'] = cookie.pop('expiry')
+            driver.add_cookie({
+                'name': cookie['name'],
+                'value': cookie['value'],
+                'domain': cookie.get('domain', '.52pojie.cn'),
+                'path': cookie.get('path', '/'),
+                'secure': cookie.get('secure', False),
+                'httpOnly': cookie.get('httpOnly', False),
+                'sameSite': cookie.get('sameSite', 'Lax')
             })
-            page.goto('https://www.52pojie.cn/home.php?mod=task&item=new')
-            # 等待导航完成
-            page.wait_for_timeout(2000)
-            # time.sleep(10)
-            page.reload()
-            flag = False
-            try:
-                page.wait_for_selector("//a[contains(text(), '新任务')]")
-                cookies = context.cookies()
-                if list(filter(lambda s: s["name"] == 'wzws_sid', cookies)):
-                    self.session.cookies.update({val["name"]: val["value"] for val in cookies})
-                    flag = True
-                else:
-                    exit()
-            except TimeoutError:
-                self.initialize.error_message(f"账号Cookie 失效", is_flag=True)
-            finally:
-                # 截图保存
-                page.screenshot(path=r"baidu_search_result.png")
-                browser.close()
-                return flag
+        return driver
+
+    def setup_browser(self, headless=False):
+        """
+        初始化浏览器实例（自动适配本地 Chrome 版本）
+        :param headless: 是否启用无头模式
+        """
+        options = uc.ChromeOptions()
+        options.add_argument('--disable-gpu')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--window-size=1920,1080')
+        options.add_argument('--lang=zh-CN')
+        if headless:
+            options.add_argument('--headless=new')  # 新一代无头模式
+        # 设置 User-Agent（模拟真实用户）
+        options.add_argument(f'--user-agent={self.session.headers.get("User-Agent")}')
+        # 🔧 指定本地 chromedriver 路径（Windows 示例）
+        driver_path = os.path.join('files', 'drivers', 'undetected_chromedriver.exe')
+        # 自动适配本地 Chrome 版本（关键：指定 version_main=135）
+        driver = uc.Chrome(options=options, driver_executable_path=driver_path)
+        self.initialize.info_message("✅ 浏览器初始化完成")
+
+        return driver
 
     def sign(self):
         """
@@ -250,12 +240,11 @@ class Template:
     def run(self):
         self.initialize.info_message("吾爱破解签到开始")
         account_list = self.config_option.read_config_key()
-        self.check_and_install_chromium()
         for ind, sec in enumerate(account_list):
             self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
             self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
             try:
-                if self.get_cookies() and self.get_task_list():
+                if self.get_cookie() and self.get_task_list():
                     self.sign()
                 self.get_account_info()
             except Exception as e:
@@ -263,25 +252,19 @@ class Template:
         self.initialize.info_message("吾爱破解签到结束")
         self.initialize.send_notify("吾爱破解")
 
-    def check_and_install_chromium(self):
+    def wait_for_js_complete(self, driver, timeout=120):
         """
-        软件自检
-
+        等待 JavaScript 加载完成
         """
         try:
-            with sync_playwright() as p:
-                # 尝试启动一次 Chromium（headless 模式）
-                browser = p.chromium.launch(headless=True)
-                self.initialize.info_message("✅ Chromium 已安装...")
-                browser.close()
+            WebDriverWait(driver, timeout).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+            self.initialize.info_message("✅ JavaScript 加载完成")
         except Exception as e:
-            if "Chromium is not installed" in str(e):
-                self.initialize.info_message("⚠️ Chromium 未安装，正在安装...")
-                subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
-                self.initialize.info_message("✅ Chromium 安装完成")
-            else:
-                self.initialize.info_message("❌ 出现其他错误:", str(e))
-                exit()
+            self.initialize.error_message(f"❌ JavaScript 加载超时: {str(e)}")
+            self.take_screenshot(driver, "JS加载失败")
+            raise
 
     def get_account_info(self):
         """
