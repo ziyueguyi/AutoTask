@@ -207,7 +207,7 @@ class Template:
         # 获取文件名
         file_path = Path.joinpath(extract_to, url.split('/')[-1].split('-')[0])
         if file_path.exists():
-            print(f"📦 文件已存在，跳过下载：{file_path}")
+            self.initialize.info_message(f"📦 文件已存在，跳过下载：{file_path}")
             return file_path
         else:
             self.initialize.info_message(f"📥 正在从 {url} 下载文件...")
@@ -269,7 +269,7 @@ class Template:
             exit()
         browser_path = Path.joinpath(self.download_and_extract(chrome, extract_to=base), browser_name)
         driver_path = Path.joinpath(self.download_and_extract(driver, extract_to=base), driver_name)
-        return driver_path, browser_path
+        return f"{driver_path}", f"{browser_path}"
 
     def setup_browser(self, headless=False):
         """
@@ -288,8 +288,6 @@ class Template:
         # 设置 User-Agent（模拟真实用户）
         options.add_argument(f'--user-agent={self.session.headers.get("User-Agent")}')
         driver = uc.Chrome(options=options, driver_executable_path=driver_path, browser_executable_path=browser_path)
-        user_agent = driver.execute_script("return navigator.userAgent;")
-        print(f"Current User-Agent: {user_agent}")
         self.initialize.info_message("✅ 浏览器初始化完成")
 
         return driver
@@ -389,5 +387,4 @@ class Template:
 
 
 if __name__ == '__main__':
-    # Template().run()
-    Template().get_environment_variables()
+    Template().run()
