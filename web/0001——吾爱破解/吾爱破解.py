@@ -252,16 +252,17 @@ class Template:
         """
         # 🔧 指定本地 chromedriver 路径（Windows 示例）
         platform_os = self.get_os()
+        base_path = Path.joinpath(Path().resolve(), 'files')
         if platform_os == 'linux':
             chrome = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/linux64/chrome-linux64.zip'
             driver = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/linux64/chromedriver-linux64.zip'
-            base = Path.joinpath(Path().resolve(), 'files', 'linux')
+            base = Path.joinpath(base_path, 'linux')
             driver_name = 'chromedriver'
             browser_name = 'chrome'
         elif platform_os == 'windows':
             chrome = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/win64/chrome-win64.zip'
             driver = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/win64/chromedriver-win64.zip'
-            base = Path.joinpath(Path().resolve(), 'files', 'windows')
+            base = Path.joinpath(base_path, 'windows')
             driver_name = 'chromedriver.exe'
             browser_name = 'chrome.exe'
         else:
