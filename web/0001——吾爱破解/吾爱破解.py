@@ -204,6 +204,7 @@ class Template:
         :param extract_to: 解压到的目标路径，默认为当前目录下以 ZIP 名命名的文件夹
         """
         # 获取文件名
+        extract_to.mkdir(parents=True, exist_ok=True)
         file_path = Path.joinpath(extract_to, url.split('/')[-1].split('-')[0])
         if file_path.exists():
             self.initialize.info_message(f"📦 文件已存在，跳过下载：{file_path}")
@@ -232,7 +233,6 @@ class Template:
         """
         # 设置解压路径
         zip_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path = zip_path
         # 解压 ZIP 文件
         self.initialize.info_message(f"📂 开始解压到：{zip_path.parent}")
         with ZipFile(zip_path, 'r') as zip_ref:
