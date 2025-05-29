@@ -11,7 +11,6 @@ const $ = new Env('吾爱破解')
 cron: 19 7 * * *
 """
 import json
-import os.path
 import platform
 import random
 import time
@@ -256,13 +255,13 @@ class Template:
         if platform_os == 'linux':
             chrome = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/linux64/chrome-linux64.zip'
             driver = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/linux64/chromedriver-linux64.zip'
-            base = Path.joinpath(Path('.'), 'files', 'linux')
+            base = Path.joinpath(Path().resolve(), 'files', 'linux')
             driver_name = 'chromedriver'
             browser_name = 'chrome'
         elif platform_os == 'windows':
             chrome = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/win64/chrome-win64.zip'
             driver = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/win64/chromedriver-win64.zip'
-            base = Path.joinpath(Path('.'), 'files', 'windows')
+            base = Path.joinpath(Path().resolve(), 'files', 'windows')
             driver_name = 'chromedriver.exe'
             browser_name = 'chrome.exe'
         else:
