@@ -238,12 +238,25 @@ class Template:
         with ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(zip_path.parent)
         Path.rename(zip_path.with_suffix(''), file_path)
+        self.set_permissions(file_path)
         self.initialize.info_message("✅ 解压完成")
 
         # 可选：删除 ZIP 文件
         zip_path.unlink()
         self.initialize.info_message(f"🗑️ 已删除压缩包：{zip_path}")
         return file_path
+
+    @staticmethod
+    def set_permissions(path, mode=0o755):
+        """
+        设置文件权限
+        :param path:
+        :param mode:
+        :return:
+        """
+        for item in path.rglob('*'):
+            Path.chmod(item, mode)
+            print(f"设置了 {item} 的权限为 {oct(mode)}")
 
     def get_environment_variables(self):
         """
