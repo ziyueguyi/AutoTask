@@ -11,11 +11,13 @@ const $ = new Env('吾爱破解')
 cron: 19 7 * * *
 """
 import json
-import os
+import os.path
+import platform
 import random
 import time
 from importlib import util
 from pathlib import Path
+from zipfile import ZipFile
 
 import undetected_chromedriver as uc
 from curl_cffi import requests
@@ -127,12 +129,16 @@ class Template:
         :return:
         """
         flag = False
+
         cookies = self.convert_session_cookies_to_selenium(self.session.cookies.jar)
         time.sleep(random.randint(1, 2))
         driver = self.setup_browser(headless=True)  # 服务器部署时请保持 True
         try:
             driver.get("https://www.52pojie.cn/home.php?mod=task&item=new")
             driver = self.load_cookies(driver, cookies)
+            self.wait_for_js_complete(driver)
+            time.sleep(5)
+            driver.refresh()
             self.wait_for_js_complete(driver)
             time.sleep(5)
             self.convert_selenium_cookies_to_session(driver)
@@ -180,6 +186,91 @@ class Template:
             })
         return driver
 
+    @staticmethod
+    def get_os():
+        system = platform.system()
+        if system == "Linux":
+            return "linux"
+        elif system == "Windows":
+            return "windows"
+        elif system == "Darwin":
+            return "macos"
+        else:
+            return "unknown"
+
+    def download_and_extract(self, url, extract_to: Path):
+        """
+        根据链接下载 ZIP 文件并解压
+        :param url: ZIP 文件的下载地址
+        :param extract_to: 解压到的目标路径，默认为当前目录下以 ZIP 名命名的文件夹
+        """
+        # 获取文件名
+        file_path = Path.joinpath(extract_to, url.split('/')[-1].split('-')[0])
+        if file_path.exists():
+            print(f"📦 文件已存在，跳过下载：{file_path}")
+            return file_path
+        else:
+            self.initialize.info_message(f"📥 正在从 {url} 下载文件...")
+            response = requests.get(url, stream=True)
+            if response.status_code != 200:
+                raise Exception(f"❌ 下载失败，HTTP 状态码: {response.status_code}")
+            else:
+                # # 保存 ZIP 文件
+                zip_path = extract_to / url.split('/')[-1]
+                with open(zip_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        if chunk:
+                            f.write(chunk)
+                self.initialize.info_message(f"📦 文件已保存至：{zip_path}")
+                return self.extract_file(zip_path, file_path)
+
+    def extract_file(self, zip_path, file_path):
+        """
+
+        :param zip_path:
+        :param file_path:
+        :return:
+        """
+        # 设置解压路径
+        zip_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path = zip_path
+        # 解压 ZIP 文件
+        self.initialize.info_message(f"📂 开始解压到：{zip_path.parent}")
+        with ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(zip_path.parent)
+        Path.rename(zip_path.with_suffix(''), file_path)
+        self.initialize.info_message("✅ 解压完成")
+
+        # 可选：删除 ZIP 文件
+        zip_path.unlink()
+        self.initialize.info_message(f"🗑️ 已删除压缩包：{zip_path}")
+        return file_path
+
+    def get_environment_variables(self):
+        """
+        部署基础所需环境
+        :return:
+        """
+        # 🔧 指定本地 chromedriver 路径（Windows 示例）
+        platform_os = self.get_os()
+        if platform_os == 'linux':
+            chrome = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/linux64/chrome-linux64.zip'
+            driver = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/linux64/chromedriver-linux64.zip'
+            base = Path.joinpath(Path('.'), 'files', 'linux')
+            driver_name = 'chromedriver'
+            browser_name = 'chrome'
+        elif platform_os == 'windows':
+            chrome = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/win64/chrome-win64.zip'
+            driver = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/win64/chromedriver-win64.zip'
+            base = Path.joinpath(Path('.'), 'files', 'windows')
+            driver_name = 'chromedriver.exe'
+            browser_name = 'chrome.exe'
+        else:
+            exit()
+        browser_path = Path.joinpath(self.download_and_extract(chrome, extract_to=base), browser_name)
+        driver_path = Path.joinpath(self.download_and_extract(driver, extract_to=base), driver_name)
+        return driver_path, browser_path
+
     def setup_browser(self, headless=False):
         """
         初始化浏览器实例（自动适配本地 Chrome 版本）
@@ -193,12 +284,12 @@ class Template:
         options.add_argument('--lang=zh-CN')
         if headless:
             options.add_argument('--headless=new')  # 新一代无头模式
+        driver_path, browser_path = self.get_environment_variables()
         # 设置 User-Agent（模拟真实用户）
         options.add_argument(f'--user-agent={self.session.headers.get("User-Agent")}')
-        # 🔧 指定本地 chromedriver 路径（Windows 示例）
-        driver_path = os.path.join('files', 'drivers', 'undetected_chromedriver.exe')
-        # 自动适配本地 Chrome 版本（关键：指定 version_main=135）
-        driver = uc.Chrome(options=options, driver_executable_path=driver_path)
+        driver = uc.Chrome(options=options, driver_executable_path=driver_path, browser_executable_path=browser_path)
+        user_agent = driver.execute_script("return navigator.userAgent;")
+        print(f"Current User-Agent: {user_agent}")
         self.initialize.info_message("✅ 浏览器初始化完成")
 
         return driver
@@ -298,4 +389,5 @@ class Template:
 
 
 if __name__ == '__main__':
-    Template().run()
+    # Template().run()
+    Template().get_environment_variables()
