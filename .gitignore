@@ -150,3 +150,4 @@ dmypy.json
 .pyre/
 chrome/
 chromedriver/
+node_modules/
