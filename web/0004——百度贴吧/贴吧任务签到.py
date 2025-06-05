@@ -4,7 +4,7 @@
 # @文件名称 :贴吧任务签到.py
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 17:11
-# @文件介绍 :网页登录稀土掘金账号，只需要cookies的BDUSS和CUID即可：{"BDUSS":"","CUID":""}
+# @文件介绍 :网页登录百度贴吧账号，只需要cookies的BDUSS和CUID即可：{"BDUSS":"","CUID":""}
 new Env('贴吧任务签到')
 cron: 19 6 * * *
 """
