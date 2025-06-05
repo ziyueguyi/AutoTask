@@ -11,6 +11,7 @@ const $ = new Env('吾爱破解')
 cron: 19 7 * * *
 """
 import json
+import os
 import platform
 import random
 import time
@@ -19,6 +20,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import undetected_chromedriver as uc
+from apscheduler.schedulers.blocking import BlockingScheduler
 from curl_cffi import requests
 from lxml import html
 from selenium.webdriver.support.ui import WebDriverWait
@@ -300,7 +302,8 @@ class Template:
         driver_path, browser_path = self.get_environment_variables()
         # 设置 User-Agent（模拟真实用户）
         options.add_argument(f'--user-agent={self.session.headers.get("User-Agent")}')
-        driver = uc.Chrome(options=options, driver_executable_path=driver_path, browser_executable_path=browser_path)
+        driver = uc.Chrome(options=options, driver_executable_path=driver_path, browser_executable_path=browser_path,
+                           version_main=135)
         self.initialize.info_message("✅ 浏览器初始化完成")
 
         return driver
@@ -339,29 +342,12 @@ class Template:
         else:
             self.initialize.error_message(f"获取签到结果失败")
 
-    def run(self):
-        self.initialize.info_message("吾爱破解签到开始")
-        account_list = self.config_option.read_config_key()
-        for ind, sec in enumerate(account_list):
-            self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
-            self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
-            try:
-                if self.get_cookie() and self.get_task_list():
-                    self.sign()
-                self.get_account_info()
-            except Exception as e:
-                self.initialize.error_message(e.__str__(), is_flag=True)
-        self.initialize.info_message("吾爱破解签到结束")
-        self.initialize.send_notify("吾爱破解")
-
     def wait_for_js_complete(self, driver, timeout=120):
         """
         等待 JavaScript 加载完成
         """
         try:
-            WebDriverWait(driver, timeout).until(
-                lambda d: d.execute_script('return document.readyState') == 'complete'
-            )
+            WebDriverWait(driver, timeout).until(lambda d: d.execute_script('return document.readyState') == 'complete')
             self.initialize.info_message("✅ JavaScript 加载完成")
         except Exception as e:
             self.initialize.error_message(f"❌ JavaScript 加载超时: {str(e)}")
@@ -398,6 +384,34 @@ class Template:
         else:
             self.initialize.error_message("获取账号信息失败", is_flag=True)
 
+    def run(self):
+        self.set_env()
+        self.initialize.info_message("吾爱破解签到开始")
+        account_list = self.config_option.read_config_key()
+        for ind, sec in enumerate(account_list):
+            self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
+            self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
+            try:
+                if self.get_cookie() and self.get_task_list():
+                    self.sign()
+                self.get_account_info()
+            except Exception as e:
+                self.initialize.error_message(e.__str__(), is_flag=True)
+        self.initialize.info_message("吾爱破解签到结束")
+        self.initialize.send_notify("吾爱破解")
 
+    @staticmethod
+    def set_env():
+        os.environ.setdefault('DD_BOT_SECRET', 'SEC999d3ff220cea418c54ab02c181b9db122f76e1db349f69e45cc507d9ca64ad0')
+        os.environ.setdefault('DD_BOT_TOKEN', '49eec26b2a4532e64e47e7d90376c3b305c10328980bb3572d91e7587bb87cbd')
+
+def run():
+    Template().run()
 if __name__ == '__main__':
     Template().run()
+    def scheduler_task():
+        scheduler = BlockingScheduler()
+        scheduler.add_job(run, trigger='cron', day_of_week='0-6', hour=8, minute=35,
+                          misfire_grace_time=1000 * 90)
+        scheduler.start()
+    scheduler_task()

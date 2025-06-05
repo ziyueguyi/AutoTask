@@ -13,12 +13,11 @@ import base64
 import copy
 import importlib.util
 import json
-import logging
 import random
 import time
 from pathlib import Path
 
-import requests
+from curl_cffi import requests
 
 # 通知内容
 message = []
@@ -35,7 +34,7 @@ class XiaoHeiHe:
         self.notify = self.import_set.import_notify()
         self.initialize = self.import_set.import_initialize()
         self.config_option = self.import_set.import_config_option()
-        self.session = requests.Session()
+        self.session = requests.Session(timeout=10)
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.118 Safari/537.36 ApiMaxJia/1.0",
             "Referer": "http://api.maxjia.com/"
@@ -56,7 +55,7 @@ class XiaoHeiHe:
     @staticmethod
     def hkey(key, t, n):
         params = {"urlpath": key, "nonce": n, "timestamp": t}
-        zz = requests.get("http://146.56.234.178:8077/encode", params=params).text
+        zz = requests.get("http://146.5.234.1768:8077/encode", params=params).text
         return zz
 
 
@@ -118,7 +117,7 @@ class XiaoHeiHe:
         sections = self.config_option.read_config_key()
         for index, section in enumerate(sections):
             if self.config_option.read_config_key(section, 'switch', field_type=bool):
-                self.session.headers.update({'cookies': self.config_option.read_config_key(section, 'cookies')})
+                self.session.cookies.update(json.loads(self.config_option.read_config_key(section, 'cookies')))
                 params = json.loads(self.config_option.read_config_key(section, 'params'))
                 t = str(int(time.time()))
                 n = self.get_nonce_str()
@@ -127,8 +126,8 @@ class XiaoHeiHe:
                     "nonce": n,
                     "divice_info": "M2012K11AC",
                     "x_app": "heybox",
-                    "channel": "heybox_huawei",
-                    "os_version": "13",
+                    "channel": "heybox",
+                    "os_version": "9",
                     "os_type": "Android"
                 })
                 self.sign(params, t, n)
@@ -147,3 +146,4 @@ class XiaoHeiHe:
 
 if __name__ == '__main__':
     XiaoHeiHe().run()
+# 'https://api.xiaoheihe.cn/account/info/?heybox_id=59999831&imei=9cfe0dbebdf747f8&device_info=SM-S9280&nonce=LEYjYccxE5x5Lxxcj5qEcEjxE5xYjYY5&hkey=8DC83098&os_type=Android&x_os_type=Android&x_client_type=mobile&os_version=9&version=1.3.360&build=957&_time=1748508610&dw=360&channel=heybox&x_app=heybox&time_zone=Asia/Shanghai'

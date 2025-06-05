@@ -4,7 +4,7 @@
 # @文件名称 :贴吧.py
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 11:04
-# @文件介绍 :网页登录稀土掘金账号，只需要cookies的BDUSS和CUID即可：{"BDUSS":"","CUID":""}
+# @文件介绍 :网页登录稀土掘金账号，只需要cookies的BDUSS和STOKEN即可：{"BDUSS":"","STOKEN":""}
 new Env('百度贴吧');
 cron: 20 6 * * *
 """
