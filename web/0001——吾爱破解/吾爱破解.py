@@ -1,37 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: 吾爱破解.py
-Author: WFRobert
-Date: 2023/3/9 15:01
-cron: 0 25 6 * * ?
-new Env('吾爱破解');
-Description: 52pojie自动签到,实现每日自动签到52pojie
-const $ = new Env('吾爱破解')
-cron: 19 7 * * *
+# @项目名称 :AutoTask
+# @文件名称 :吾爱破解.py
+# @作者名称 :sxzhang1
+# @任务名称：name 吾爱破解
+# @任务时间：cron: 0 25 8 * * *
+# @目标网站：url: https://www.52pojie.cn/home.php?mod=task&item=done
+# @日期时间 : 2023/3/9 15:01
+# @文件介绍 :52pojie自动签到,实现每日自动签到52pojie,获取cookie中htVC_2132_saltkey和htVC_2132_auth即可，
 """
 import json
 import os
-import platform
 import random
+import re
 import time
 from importlib import util
 from pathlib import Path
-from zipfile import ZipFile
 
-import undetected_chromedriver as uc
-from apscheduler.schedulers.blocking import BlockingScheduler
+import execjs
 from curl_cffi import requests
 from lxml import html
-from selenium.webdriver.support.ui import WebDriverWait
-
-
-# 👇 禁止析构函数中的 quit()
-def noop(self):
-    pass
-
-
-uc.Chrome.__del__ = noop  # 👈 关键一行
 
 
 class Template:
@@ -98,215 +87,37 @@ class Template:
             self.initialize.error_message(f"获取任务列表失败")
         return False
 
-    @staticmethod
-    def convert_session_cookies_to_selenium(requests_cookies):
-        """
-        coookies转换，转为playwright可用cookies
-        :param requests_cookies:
-        :return:
-        """
-        cookies = []
-        for c in requests_cookies:
-            cookies.append({
-                "name": c.name,
-                "value": c.value,
-                "domain": c.domain if c.domain.startswith('.') else '.' + c.domain if c.domain else 'www.52pojie.cn',
-                "path": c.path,
-                "expires": c.expires if c.expires else -1,
-                "httpOnly": bool(c._rest.get("http_only", c.name in ['htVC_2132_saltkey', 'htVC_2132_auth'])),
-                "secure": bool(c.secure or c.name in ['htVC_2132_saltkey', 'htVC_2132_auth']),
-                "sameSite": "Lax" if c.name in ['wzws_sessionid', 'htVC_2132_saltkey', 'htVC_2132_auth'] else 'None'
-            })
-        return cookies
-
-    def take_screenshot(self, driver, step_name):
-        filename = f"{step_name}.png"
-        driver.save_screenshot(filename)
-        self.initialize.info_message(f"📸 已截图保存为：{filename}")
-
     def get_cookie(self):
         """
         获取加签的cookies
         :return:
         """
-        flag = False
 
-        cookies = self.convert_session_cookies_to_selenium(self.session.cookies.jar)
-        time.sleep(random.randint(1, 2))
-        driver = self.setup_browser(headless=True)  # 服务器部署时请保持 True
-        try:
-            driver.get("https://www.52pojie.cn/home.php?mod=task&item=new")
-            driver = self.load_cookies(driver, cookies)
-            self.wait_for_js_complete(driver)
-            time.sleep(5)
-            driver.refresh()
-            self.wait_for_js_complete(driver)
-            time.sleep(5)
-            self.convert_selenium_cookies_to_session(driver)
-            self.take_screenshot(driver, "登录界面")
-            flag = True
-        except Exception as e:
-            self.initialize.error_message(f"❌ 获取 cookies 异常: {str(e)}")
-            self.take_screenshot(driver, "错误页面")
-        finally:
-            # 关闭浏览器驱动
-            driver.quit()
-            self.initialize.info_message("🚪 浏览器已关闭")
-            return flag
-
-    def convert_selenium_cookies_to_session(self, driver):
-        # 获取当前 cookies（Selenium 格式）
-        selenium_cookies = driver.get_cookies()
-
-        # 转换为 requests 可用格式
-        cookie_dict = {}
-        for cookie in selenium_cookies:
-            cookie_dict[cookie['name']] = cookie['value']
-
-        # 更新到 self.session 的 cookies 中
-        self.session.cookies.update(cookie_dict)
-        self.initialize.info_message("✅ 已将 Selenium Cookies 更新至 Session")
-
-    @staticmethod
-    def load_cookies(driver, cookies):
-        """
-        加载本地保存的 Cookies（用于保持登录状态）
-        """
-
-        for cookie in cookies:
-            if 'expiry' in cookie:
-                cookie['expirationDate'] = cookie.pop('expiry')
-            driver.add_cookie({
-                'name': cookie['name'],
-                'value': cookie['value'],
-                'domain': cookie.get('domain', '.52pojie.cn'),
-                'path': cookie.get('path', '/'),
-                'secure': cookie.get('secure', False),
-                'httpOnly': cookie.get('httpOnly', False),
-                'sameSite': cookie.get('sameSite', 'Lax')
-            })
-        return driver
-
-    @staticmethod
-    def get_os():
-        system = platform.system()
-        if system == "Linux":
-            return "linux"
-        elif system == "Windows":
-            return "windows"
-        elif system == "Darwin":
-            return "macos"
-        else:
-            return "unknown"
-
-    def download_and_extract(self, url, extract_to: Path):
-        """
-        根据链接下载 ZIP 文件并解压
-        :param url: ZIP 文件的下载地址
-        :param extract_to: 解压到的目标路径，默认为当前目录下以 ZIP 名命名的文件夹
-        """
-        # 获取文件名
-        extract_to.mkdir(parents=True, exist_ok=True)
-        file_path = Path.joinpath(extract_to, url.split('/')[-1].split('-')[0])
-        if file_path.exists():
-            self.initialize.info_message(f"📦 文件已存在，跳过下载：{file_path}")
-            return file_path
-        else:
-            self.initialize.info_message(f"📥 正在从 {url} 下载文件...")
-            response = requests.get(url, stream=True)
-            if response.status_code != 200:
-                raise Exception(f"❌ 下载失败，HTTP 状态码: {response.status_code}")
+        params = {
+            'mod': 'task',
+            'item': 'new',
+        }
+        url = 'https://www.52pojie.cn/home.php'
+        response = self.session.get(url, params=params).text
+        le = re.search(r"LE='(.*?)';", response, re.S)
+        lz, lj = re.search(r"LZ='(\d+)'", response), re.search(r"LJ='(\d+)'", response)
+        if lz and lj and le:
+            self.initialize.info_message(f"吾爱三神获取成功：\nlz:{lz.group(1)}\n lj:{lj.group(1)}\n le:{le.group(1)}")
+            ctx = execjs.compile(open('env_add_salt.js', encoding='utf8').read())
+            data = ctx.call('get_fp', le.group(1), lz.group(1), lj.group(1))
+            time.sleep(1)
+            wzws_sid_old = self.session.cookies.get("wzws_sid")
+            self.session.post('https://www.52pojie.cn/waf_zw_verify', data=data)
+            wzws_sid_new = self.session.cookies.get("wzws_sid")
+            if wzws_sid_new != wzws_sid_old:
+                self.initialize.info_message(f"wzws_sid获取成功：{wzws_sid_new}")
+                return True
             else:
-                # # 保存 ZIP 文件
-                zip_path = extract_to / url.split('/')[-1]
-                with open(zip_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=1024):
-                        if chunk:
-                            f.write(chunk)
-                self.initialize.info_message(f"📦 文件已保存至：{zip_path}")
-                return self.extract_file(zip_path, file_path)
-
-    def extract_file(self, zip_path, file_path):
-        """
-
-        :param zip_path:
-        :param file_path:
-        :return:
-        """
-        # 设置解压路径
-        zip_path.parent.mkdir(parents=True, exist_ok=True)
-        # 解压 ZIP 文件
-        self.initialize.info_message(f"📂 开始解压到：{zip_path.parent}")
-        with ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(zip_path.parent)
-        Path.rename(zip_path.with_suffix(''), file_path)
-        self.set_permissions(file_path)
-        self.initialize.info_message("✅ 解压完成")
-
-        # 可选：删除 ZIP 文件
-        zip_path.unlink()
-        self.initialize.info_message(f"🗑️ 已删除压缩包：{zip_path}")
-        return file_path
-
-    @staticmethod
-    def set_permissions(path, mode=0o755):
-        """
-        设置文件权限
-        :param path:
-        :param mode:
-        :return:
-        """
-        for item in path.rglob('*'):
-            Path.chmod(item, mode)
-            print(f"设置了 {item} 的权限为 {oct(mode)}")
-
-    def get_environment_variables(self):
-        """
-        部署基础所需环境
-        :return:
-        """
-        # 🔧 指定本地 chromedriver 路径（Windows 示例）
-        platform_os = self.get_os()
-        base_path = Path.joinpath(Path().resolve(), 'files')
-        if platform_os == 'linux':
-            chrome = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/linux64/chrome-linux64.zip'
-            driver = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/linux64/chromedriver-linux64.zip'
-            base = Path.joinpath(base_path, 'linux')
-            driver_name = 'chromedriver'
-            browser_name = 'chrome'
-        elif platform_os == 'windows':
-            chrome = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/win64/chrome-win64.zip'
-            driver = 'https://storage.googleapis.com/chrome-for-testing-public/137.0.7151.55/win64/chromedriver-win64.zip'
-            base = Path.joinpath(base_path, 'windows')
-            driver_name = 'chromedriver.exe'
-            browser_name = 'chrome.exe'
+                self.initialize.error_message("wzws_sid更新失败")
+                exit()
         else:
+            self.initialize.error_message("lz,lj,le获取失败，可能cookies已失效", flag=True)
             exit()
-        browser_path = Path.joinpath(self.download_and_extract(chrome, extract_to=base), browser_name)
-        driver_path = Path.joinpath(self.download_and_extract(driver, extract_to=base), driver_name)
-        return f"{driver_path}", f"{browser_path}"
-
-    def setup_browser(self, headless=False):
-        """
-        初始化浏览器实例（自动适配本地 Chrome 版本）
-        :param headless: 是否启用无头模式
-        """
-        options = uc.ChromeOptions()
-        options.add_argument('--disable-gpu')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--window-size=1920,1080')
-        options.add_argument('--lang=zh-CN')
-        if headless:
-            options.add_argument('--headless=new')  # 新一代无头模式
-        driver_path, browser_path = self.get_environment_variables()
-        # 设置 User-Agent（模拟真实用户）
-        options.add_argument(f'--user-agent={self.session.headers.get("User-Agent")}')
-        driver = uc.Chrome(options=options, driver_executable_path=driver_path, browser_executable_path=browser_path,
-                           version_main=135)
-        self.initialize.info_message("✅ 浏览器初始化完成")
-
-        return driver
 
     def sign(self):
         """
@@ -341,18 +152,6 @@ class Template:
                 self.initialize.info_message(response.text)
         else:
             self.initialize.error_message(f"获取签到结果失败")
-
-    def wait_for_js_complete(self, driver, timeout=120):
-        """
-        等待 JavaScript 加载完成
-        """
-        try:
-            WebDriverWait(driver, timeout).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-            self.initialize.info_message("✅ JavaScript 加载完成")
-        except Exception as e:
-            self.initialize.error_message(f"❌ JavaScript 加载超时: {str(e)}")
-            self.take_screenshot(driver, "JS加载失败")
-            raise
 
     def get_account_info(self):
         """
@@ -405,13 +204,7 @@ class Template:
         os.environ.setdefault('DD_BOT_SECRET', 'SEC999d3ff220cea418c54ab02c181b9db122f76e1db349f69e45cc507d9ca64ad0')
         os.environ.setdefault('DD_BOT_TOKEN', '49eec26b2a4532e64e47e7d90376c3b305c10328980bb3572d91e7587bb87cbd')
 
-def run():
-    Template().run()
+
+
 if __name__ == '__main__':
     Template().run()
-    def scheduler_task():
-        scheduler = BlockingScheduler()
-        scheduler.add_job(run, trigger='cron', day_of_week='0-6', hour=8, minute=35,
-                          misfire_grace_time=1000 * 90)
-        scheduler.start()
-    scheduler_task()
