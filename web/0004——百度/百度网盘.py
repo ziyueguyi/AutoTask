@@ -40,7 +40,7 @@ class Template:
         初始化方法
         :return:
         """
-        if not Path.exists(Path.joinpath(self.config_option.file_path, "config.ini")):
+        if not Path.exists(Path.joinpath(self.config_option.file_path, "../0012——百度网盘/config.ini")):
             self.config_option.write_config("账户1", "switch", "0")
             self.config_option.write_config("账户1", "cookies", "")
             self.initialize.info_message("请配置账户信息")
