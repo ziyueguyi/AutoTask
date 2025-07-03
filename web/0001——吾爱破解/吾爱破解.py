@@ -19,11 +19,12 @@ from importlib import util
 from pathlib import Path
 
 import execjs
+from apscheduler.schedulers.blocking import BlockingScheduler
 from curl_cffi import requests
 from lxml import html
 
 
-class Template:
+class LoveCracking:
     def __init__(self) -> None:
         tools_path = Path(__file__).resolve().parent.parent.parent / 'public'
         import_set_spc = util.spec_from_file_location('ImportSet', str(tools_path / 'ImportSet.py'))
@@ -116,7 +117,7 @@ class Template:
                 self.initialize.error_message("wzws_sid更新失败")
                 exit()
         else:
-            self.initialize.error_message("lz,lj,le获取失败，可能cookies已失效", flag=True)
+            self.initialize.error_message("lz,lj,le获取失败，可能cookies已失效", is_flag=True)
             exit()
 
     def sign(self):
@@ -205,6 +206,18 @@ class Template:
         os.environ.setdefault('DD_BOT_TOKEN', '49eec26b2a4532e64e47e7d90376c3b305c10328980bb3572d91e7587bb87cbd')
 
 
+def run():
+    LoveCracking().run()
+
 
 if __name__ == '__main__':
-    Template().run()
+    # LoveCracking().run()
+    print("定时任务开始")
+    def scheduler_task():
+        scheduler = BlockingScheduler()
+        scheduler.add_job(run, trigger='cron', day_of_week='0-6', hour=8, minute=35,
+                          misfire_grace_time=1000 * 90)
+        scheduler.start()
+
+
+    scheduler_task()
