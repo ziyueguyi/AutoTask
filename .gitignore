@@ -12,7 +12,7 @@ demo*.json
 # config
 web/0003——阿里云盘/aliConfig.json
 app/0001——小黑盒/heiboxConfig.json
-web/0011——天翼网盘/tianyiwanpanConfig.json
+web/0002——天翼网盘/tianyiwanpanConfig.json
 # 去除json文件
 user_data.json
 # 去除所有xml
