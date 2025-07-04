@@ -84,7 +84,7 @@ class Template:
             return False
 
     def sign_in(self, params):
-        response = self.session.post("https://api.juejin.cn/growth_api/v1/check_in", json={}, params=params)
+        response = self.session.post("https://api.juejin.cn/growth_api/v1/check_in", params=params)
         time.sleep(1)
         if response.status_code == 200 and response.json()["err_no"] == 0:
             self.initialize.info_message(f"签到成功", is_flag=True)
