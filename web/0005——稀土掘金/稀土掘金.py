@@ -8,6 +8,7 @@
 const $ = new Env('稀土掘金')
 cron: 22 6 * * *
 """
+import copy
 import json
 import random
 import re
@@ -521,7 +522,9 @@ class Template:
                         self.get_article_list(params)
                         self.get_hot_boiling_point(params)
                         self.send_boiling_point(params)
-                        self.draw(json.loads(self.config_option.read_config_key(section=sec, key="draw_params")))
+                        d_params = copy.deepcopy(params)
+                        d_params.update(json.loads(self.config_option.read_config_key(section=sec, key="draw_params")))
+                        self.draw(d_params)
                     self.message_info(params)
                     time.sleep(1)
                     self.get_sign_day(params)
