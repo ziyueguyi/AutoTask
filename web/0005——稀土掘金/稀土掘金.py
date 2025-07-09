@@ -521,7 +521,7 @@ class Template:
                         self.get_article_list(params)
                         self.get_hot_boiling_point(params)
                         self.send_boiling_point(params)
-                        self.draw(params)
+                        self.draw(json.loads(self.config_option.read_config_key(section=sec, key="draw_params")))
                     self.message_info(params)
                     time.sleep(1)
                     self.get_sign_day(params)
