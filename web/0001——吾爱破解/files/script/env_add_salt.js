@@ -2,7 +2,7 @@ const LE1 = 'Vkmab6eDPZX7pAHuzsy1jLn90Ui+Wrqt4ORTY8xf/Gc5wgSJo2lKIvQ3BhFCNEdM';
 const LZ1 = '95574';
 const LJ1 = '79300';
 
-function get_fp(LE, LZ, LJ, env = null) {
+function get_fp(LE, LZ, LJ, env) {
     //params:LE->代码中参数LE（'Vkmab6eDPZX7pAHuzsy1jLn90Ui+Wrqt4ORTY8xf/Gc5wgSJo2lKIvQ3BhFCNEdM'）
     //params:LZ->代码中参数LZ（'95574'）
     //params:LJ->代码中参数LJ（'79300'）

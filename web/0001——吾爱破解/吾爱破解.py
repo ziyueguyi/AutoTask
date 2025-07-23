@@ -17,11 +17,10 @@ import re
 import time
 from importlib import util
 from pathlib import Path
-
-import execjs
 from apscheduler.schedulers.blocking import BlockingScheduler
 from curl_cffi import requests
 from lxml import html
+from py_mini_racer import py_mini_racer
 
 
 class LoveCracking:
@@ -104,7 +103,8 @@ class LoveCracking:
         lz, lj = re.search(r"LZ='(\d+)'", response), re.search(r"LJ='(\d+)'", response)
         if lz and lj and le:
             self.initialize.info_message(f"吾爱三神获取成功：\nlz:{lz.group(1)}\n lj:{lj.group(1)}\n le:{le.group(1)}")
-            ctx = execjs.compile(open('files/script/env_add_salt.js', encoding='utf8').read())
+            ctx = py_mini_racer.MiniRacer()
+            ctx.eval(open('files/script/env_add_salt.js', encoding='utf8').read())
             data = ctx.call('get_fp', le.group(1), lz.group(1), lj.group(1))
             time.sleep(1)
             wzws_sid_old = self.session.cookies.get("wzws_sid")
@@ -211,7 +211,7 @@ def run():
 
 
 if __name__ == '__main__':
-    # LoveCracking().run()
+    LoveCracking().run()
     print("定时任务开始")
     def scheduler_task():
         scheduler = BlockingScheduler()
