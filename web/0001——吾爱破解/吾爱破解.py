@@ -17,7 +17,7 @@ import re
 import time
 from importlib import util
 from pathlib import Path
-from apscheduler.schedulers.blocking import BlockingScheduler
+
 from curl_cffi import requests
 from lxml import html
 from py_mini_racer import py_mini_racer
@@ -46,7 +46,7 @@ class LoveCracking:
         """
         if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
             self.config_option.write_config("账户1", "switch", "0").write_config("账户1", "cookies", "")
-            self.initialize.info_message("请配置账户信息")
+            print("请配置账户信息")
             exit()
 
     def get_task_list(self):
@@ -77,14 +77,14 @@ class LoveCracking:
                 # 提取申请链接
                 apply_link = task.xpath(".//a[@href]/@href")[0]
                 msg = f"任务名称：{task_name}，\n任务描述：{desc_text}，\n任务奖励：{reward}，\n任务链接：{apply_link}"
-                self.initialize.info_message(msg, is_flag=True)
+                print(msg)
                 return True
             elif no_task:
-                self.initialize.info_message(no_task[0], is_flag=True)
+                print(no_task[0])
             else:
-                self.initialize.info_message('没有找到相关任务', is_flag=True)
+                print('没有找到相关任务')
         else:
-            self.initialize.error_message(f"获取任务列表失败")
+            print(f"获取任务列表失败")
         return False
 
     def get_cookie(self):
@@ -102,7 +102,7 @@ class LoveCracking:
         le = re.search(r"LE='(.*?)';", response, re.S)
         lz, lj = re.search(r"LZ='(\d+)'", response), re.search(r"LJ='(\d+)'", response)
         if lz and lj and le:
-            self.initialize.info_message(f"吾爱三神获取成功：\nlz:{lz.group(1)}\n lj:{lj.group(1)}\n le:{le.group(1)}")
+            print(f"吾爱三神获取成功：\nlz:{lz.group(1)}\n lj:{lj.group(1)}\n le:{le.group(1)}")
             ctx = py_mini_racer.MiniRacer()
             ctx.eval(open('files/script/env_add_salt.js', encoding='utf8').read())
             data = ctx.call('get_fp', le.group(1), lz.group(1), lj.group(1))
@@ -111,13 +111,13 @@ class LoveCracking:
             self.session.post('https://www.52pojie.cn/waf_zw_verify', data=data)
             wzws_sid_new = self.session.cookies.get("wzws_sid")
             if wzws_sid_new != wzws_sid_old:
-                self.initialize.info_message(f"wzws_sid获取成功：{wzws_sid_new}")
+                print(f"wzws_sid获取成功：{wzws_sid_new}")
                 return True
             else:
-                self.initialize.error_message("wzws_sid更新失败")
+                print("wzws_sid更新失败")
                 exit()
         else:
-            self.initialize.error_message("lz,lj,le获取失败，可能cookies已失效", is_flag=True)
+            print("lz,lj,le获取失败，可能cookies已失效")
             exit()
 
     def sign(self):
@@ -140,19 +140,19 @@ class LoveCracking:
             if rows:
                 row = rows[0]
                 if "任务已完成" in row:
-                    self.initialize.info_message(f"账号签到成功", is_flag=True)
+                    print(f"账号签到成功")
                 elif '本期您已申请过此任务' in row:
-                    self.initialize.info_message(f"账号今日已签到", is_flag=True)
+                    print(f"账号今日已签到")
                 elif "您需要先登录才能继续本操作" in row:
-                    self.initialize.error_message(f"账号Cookie 失效", is_flag=True)
+                    print(f"账号Cookie 失效")
                 else:
-                    self.initialize.error_message(f"账号签到失败", is_flag=True)
-                    self.initialize.info_message(response.text)
+                    print(f"账号签到失败")
+                    print(response.text)
             else:
-                self.initialize.error_message(f"未知错误", is_flag=True)
-                self.initialize.info_message(response.text)
+                print(f"未知错误")
+                print(response.text)
         else:
-            self.initialize.error_message(f"获取签到结果失败")
+            print(f"获取签到结果失败")
 
     def get_account_info(self):
         """
@@ -180,25 +180,25 @@ class LoveCracking:
             msg += "热心值:{0:10s}\t".format(ul.xpath(f_str.format('热心值'))[0].strip())
             msg += "违规值:{0:10s}\t".format(ul.xpath(f_str.format('违规'))[0].strip())
             msg += "积分点:{0:10s}\t".format(ul.xpath(f_str.format('积分'))[0].strip())
-            self.initialize.info_message(msg, is_flag=True)
+            print(msg)
         else:
-            self.initialize.error_message("获取账号信息失败", is_flag=True)
+            print("获取账号信息失败")
 
     def run(self):
         self.set_env()
-        self.initialize.info_message("吾爱破解签到开始")
+        print("吾爱破解签到开始")
         account_list = self.config_option.read_config_key()
         for ind, sec in enumerate(account_list):
-            self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
+            print(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
             self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
             try:
                 if self.get_cookie() and self.get_task_list():
                     self.sign()
                 self.get_account_info()
             except Exception as e:
-                self.initialize.error_message(e.__str__(), is_flag=True)
-        self.initialize.info_message("吾爱破解签到结束")
-        self.initialize.send_notify("吾爱破解")
+                print(e.__str__())
+        print("吾爱破解签到结束")
+        print("吾爱破解")
 
     @staticmethod
     def set_env():
@@ -212,12 +212,12 @@ def run():
 
 if __name__ == '__main__':
     LoveCracking().run()
-    print("定时任务开始")
-    def scheduler_task():
-        scheduler = BlockingScheduler()
-        scheduler.add_job(run, trigger='cron', day_of_week='0-6', hour=8, minute=35,
-                          misfire_grace_time=1000 * 90)
-        scheduler.start()
-
-
-    scheduler_task()
+    # print("定时任务开始")
+    #
+    #
+    # def scheduler_task():
+    #     scheduler = BlockingScheduler()
+    #     scheduler.add_job(run, trigger='cron', day_of_week='0-6', hour=8, minute=35, misfire_grace_time=1000 * 90)
+    #     scheduler.start()
+    #
+    # scheduler_task()
