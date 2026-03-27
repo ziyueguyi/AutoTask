@@ -87,6 +87,7 @@ class Template:
     def sign_in(self, params):
         response = self.session.post("https://api.juejin.cn/growth_api/v1/check_in", params=params)
         time.sleep(1)
+        print(response.text)
         if response.status_code == 200 and response.json()["err_no"] == 0:
             self.initialize.info_message(f"签到成功", is_flag=True)
             self.initialize.info_message(f"获得矿石：{response.json()['data']['incr_point']}颗", is_flag=True)
@@ -518,7 +519,7 @@ class Template:
                 time.sleep(1)
                 if self.get_user_info(params):
                     time.sleep(1)
-                    if self.sign_in(params):
+                    if True or self.sign_in(params):
                         self.get_article_list(params)
                         self.get_hot_boiling_point(params)
                         self.send_boiling_point(params)
