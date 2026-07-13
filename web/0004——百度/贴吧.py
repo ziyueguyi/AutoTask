@@ -5,11 +5,11 @@
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 11:04
 # @文件介绍 :网页登录百度贴吧账号，只需要cookies的BDUSS和STOKEN即可：{"BDUSS":"","STOKEN":""}
+# 青龙环境变量 TIEBA_COOKIE，多账号用 & 或换行分隔
 new Env('百度贴吧');
 cron: 20 6 * * *
 """
 import hashlib
-import json
 import random
 import time
 from importlib import util
@@ -27,7 +27,13 @@ class PostBar:
         import_set_spc.loader.exec_module(self.import_set)
         self.import_set = self.import_set.ImportSet()
         self.initialize = self.import_set.import_initialize()
-        self.config_option = self.import_set.import_config_option()
+        account_loader_spc = util.spec_from_file_location(
+            'account_loader', str(tools_path / 'tools' / 'account_loader.py')
+        )
+        account_loader = util.module_from_spec(account_loader_spc)
+        account_loader_spc.loader.exec_module(account_loader)
+        self.load_accounts = account_loader.load_accounts
+        self.env_name = 'TIEBA_COOKIE'
         self.session = requests.Session(timeout=10)
         self.session.headers.update({
             'connection': 'keep-alive',
@@ -36,17 +42,6 @@ class PostBar:
             'charset': 'UTF-8',
             'User-Agent': UserAgent().chrome,
         })
-        self.init_config()
-
-    def init_config(self):
-        """
-        初始化方法
-        :return:
-        """
-        if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
-            self.config_option.write_config("账户1", "switch", "0").write_config("账户1", "cookies", "")
-            self.initialize.info_message("请配置账户信息")
-            exit()
 
     def get_tbs(self):
         """
@@ -148,10 +143,14 @@ class PostBar:
 
     def run(self):
         self.initialize.info_message("贴吧签到开始")
-        account_list = self.config_option.read_config_key()
-        for ind, sec in enumerate(account_list):
-            self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
-            self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
+        accounts = self.load_accounts(self.env_name)
+        if not accounts:
+            self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.env_name}")
+            return
+        for ind, (name, cookies) in enumerate(accounts):
+            self.initialize.info_message(f"共{len(accounts)}个账户，第{ind + 1}个账户：{name}")
+            self.session.cookies.clear()
+            self.session.cookies.update(cookies)
             try:
                 tbs = self.get_tbs()
                 if tbs:

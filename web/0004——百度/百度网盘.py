@@ -5,10 +5,10 @@
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/20 11:40
 # @文件介绍 :网页登录百度网盘svip账号，只需要BDUSS_BFESS和STOKEN即可：{"BDUSS_BFESS":"","STOKEN":""}
+# 青龙环境变量 BAIDU_PAN_COOKIE，多账号用 & 或换行分隔{"BDUSS_BFESS":"账号1","STOKEN":"xxx"}&{"BDUSS_BFESS":"账号2","STOKEN":"yyy"}
 const $ = new Env('百度网盘')
 cron: 19 7 * * *
 """
-import json
 import time
 from datetime import datetime
 from importlib import util
@@ -25,7 +25,13 @@ class Template:
         import_set_spc.loader.exec_module(self.import_set)
         self.import_set = self.import_set.ImportSet()
         self.initialize = self.import_set.import_initialize()
-        self.config_option = self.import_set.import_config_option()
+        account_loader_spc = util.spec_from_file_location(
+            "account_loader", str(tools_path / "tools" / "account_loader.py")
+        )
+        account_loader = util.module_from_spec(account_loader_spc)
+        account_loader_spc.loader.exec_module(account_loader)
+        self.load_accounts = account_loader.load_accounts
+        self.env_name = "BAIDU_PAN_COOKIE"
         self.session = requests.Session(timeout=10)
         self.session.headers.update({
             "Accept": "*/*",
@@ -33,18 +39,6 @@ class Template:
             "Content-type": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
         })
-        self.init_config()
-
-    def init_config(self):
-        """
-        初始化方法
-        :return:
-        """
-        if not Path.exists(Path.joinpath(self.config_option.file_path, "config.ini")):
-            self.config_option.write_config("账户1", "switch", "0")
-            self.config_option.write_config("账户1", "cookies", "")
-            self.initialize.info_message("请配置账户信息")
-            exit()
 
     def get_user_info(self):
         """
@@ -177,10 +171,14 @@ class Template:
 
     def run(self):
         self.initialize.info_message("签到开始")
-        account_list = self.config_option.read_config_key()
-        for ind, sec in enumerate(account_list):
-            self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec}")
-            self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
+        accounts = self.load_accounts(self.env_name)
+        if not accounts:
+            self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.env_name}")
+            return
+        for ind, (name, cookies) in enumerate(accounts):
+            self.initialize.info_message(f"共{len(accounts)}个账户，第{ind + 1}个账户：{name}")
+            self.session.cookies.clear()
+            self.session.cookies.update(cookies)
             try:
                 if self.get_user_info():
                     self.get_vip_end_date()

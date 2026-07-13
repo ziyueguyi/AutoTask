@@ -5,11 +5,11 @@
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 17:11
 # @文件介绍 :网页登录百度贴吧账号，只需要cookies的BDUSS和CUID即可：{"BDUSS":"","CUID":""}
+# 青龙环境变量 TIEBA_TASK_COOKIE，多账号用 & 或换行分隔
 new Env('贴吧任务签到')
 cron: 19 6 * * *
 """
 
-import json
 import time
 from importlib import util
 from pathlib import Path
@@ -26,7 +26,13 @@ class PostBar:
         import_set_spc.loader.exec_module(self.import_set)
         self.import_set = self.import_set.ImportSet()
         self.initialize = self.import_set.import_initialize()
-        self.config_option = self.import_set.import_config_option()
+        account_loader_spc = util.spec_from_file_location(
+            'account_loader', str(tools_path / 'tools' / 'account_loader.py')
+        )
+        account_loader = util.module_from_spec(account_loader_spc)
+        account_loader_spc.loader.exec_module(account_loader)
+        self.load_accounts = account_loader.load_accounts
+        self.env_name = 'TIEBA_TASK_COOKIE'
         self.session = requests.Session(timeout=10)
         self.session.headers.update({
             'connection': 'keep-alive',
@@ -35,18 +41,8 @@ class PostBar:
             'charset': 'UTF-8',
             'User-Agent': UserAgent().chrome,
         })
-        self.init_config()
         self.baseUrl = 'https://tieba.baidu.com'
 
-    def init_config(self):
-        """
-        初始化方法
-        :return:
-        """
-        if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
-            self.config_option.write_config("账户1", "switch", "0").write_config("账户1", "cookies", "")
-            self.initialize.info_message("请配置账户信息")
-            exit()
     def get_user_info(self):
         user_url = f'{self.baseUrl}/mo/q/usergrowth/showUserGrowth?client_type=2&client_version=12.60.1.2'
         response = self.session.get(user_url)
@@ -60,18 +56,18 @@ class PostBar:
             self.initialize.info_message(f"获取用户信息失败", is_flag=True)
             return None, None
 
-    def sign(self, tbs, user_name, sec):
+    def sign(self, tbs, user_name, cookies):
         """
         账号进行签到
         :param tbs:
         :param user_name:
-        :param sec:
+        :param cookies:
         :return:
         """
         params = {
             'tbs': tbs,
             'act_type': 'page_sign',
-            'cuid': json.loads(self.config_option.read_config_key(section=sec, key="cookies")).get("CUID"),
+            'cuid': cookies.get("CUID"),
             'client_type': 2,
             'brand': 'OPPO',
             'model': 'OPPO%20R9s',
@@ -106,15 +102,19 @@ class PostBar:
 
     def run(self):
         self.initialize.info_message("贴吧签到开始")
-        account_list = self.config_option.read_config_key()
-        for ind, sec in enumerate(account_list):
-            self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
-            self.session.cookies.update(json.loads(self.config_option.read_config_key(section=sec, key="cookies")))
+        accounts = self.load_accounts(self.env_name)
+        if not accounts:
+            self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.env_name}")
+            return
+        for ind, (name, cookies) in enumerate(accounts):
+            self.initialize.info_message(f"共{len(accounts)}个账户，第{ind + 1}个账户：{name}")
+            self.session.cookies.clear()
+            self.session.cookies.update(cookies)
             try:
                 user_name, tbs = self.get_user_info()
                 if user_name:
                     time.sleep(1)
-                    self.sign(tbs, user_name, sec)
+                    self.sign(tbs, user_name, cookies)
                     time.sleep(1)
                     self.get_point()
             except BaseException as e:
