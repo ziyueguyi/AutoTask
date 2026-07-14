@@ -581,20 +581,30 @@ class Notify:
         res = requests.get(url).json()
         return res["hitokoto"] + "    ----" + res["from"]
 
-    def read_config(self, config=None):
+    def read_config(self, project_name=None):
         """
-        判断是否通知
+        根据系统配置 notice 判断是否推送。
+        notice=all 表示全部推送；notice=百度网盘,贴吧 表示仅列出的项目推送。
         """
-        if config is None:
-            # 获取主运行脚本的文件路径
-            config = self.config_option.read_config_key(section="系统配置", key="notice")
-            config = config == sys.argv[0].split('.')[0] or config == "all"
+        if project_name is None:
+            project_name = Path(sys.argv[0]).stem
 
-        return config
+        notice = self.config_option.read_config_key(section="系统配置", key="notice")
+        if not notice:
+            return False
+        notice = notice.strip()
+        if notice.lower() == "all":
+            return True
+        enabled = [name.strip() for name in notice.split(",") if name.strip()]
+        return project_name in enabled
 
-    def send(self, title: str, content: str, config_notice: bool = None) -> None:
-        if not self.read_config(config_notice):
-            self.print_info(f"{title} 已设置不进行推送，如需打开请配置notice=True")
+    def send(self, title: str, content: str, project_name: str = None) -> None:
+        if project_name is None:
+            match = re.match(r'^【(.+)】$', title)
+            project_name = match.group(1) if match else Path(sys.argv[0]).stem
+
+        if not self.read_config(project_name):
+            self.print_info(f"{title} 已设置不进行推送，如需打开请在系统配置 notice 中加入 {project_name}")
             return
         elif not content:
             self.print_info(f"{title} 推送内容为空！")

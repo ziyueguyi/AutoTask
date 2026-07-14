@@ -31,7 +31,7 @@ class Template:
         account_loader = util.module_from_spec(account_loader_spc)
         account_loader_spc.loader.exec_module(account_loader)
         self.load_accounts = account_loader.load_accounts
-        self.env_name = "BAIDU_PAN_COOKIE"
+        self.env_name = "BAIDU_COOKIE"
         self.session = requests.Session(timeout=10)
         self.session.headers.update({
             "Accept": "*/*",
