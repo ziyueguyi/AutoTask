@@ -6,9 +6,10 @@
 # @作者名称 :张洛
 # @日期时间 :2025/04/30 9:25
 # @文件介绍 :天翼网盘脚本,实现每日自动完成天翼网盘签到
+const $ = new Env('天翼网盘签到脚本')
 cron: 0 10 6 * * ?
-new Env('天翼网盘签到脚本');
 """
+
 import base64
 import importlib.util
 import json
