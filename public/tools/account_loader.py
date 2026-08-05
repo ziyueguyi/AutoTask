@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-青龙面板多账号 Cookie 加载（仅环境变量）。
+青龙面板多账号 Cookie / Token 加载（仅环境变量）。
 
 环境变量多账号分隔（与夸克/JD 类似）：
   - & 连接多个账号
   - 或换行（青龙环境变量里一行一个账号）
 
-单账号支持两种格式：
-  1. JSON：{"BDUSS":"xxx","STOKEN":"yyy"}
-  2. 键值串：BDUSS=xxx;STOKEN=yyy
+单账号支持三种格式：
+  1. JSON：{"BDUSS":"xxx","STOKEN":"yyy"} 或 {"token":"xxx"}
+  2. 键值串：BDUSS=xxx;STOKEN=yyy 或 token=xxx
+  3. 纯字符串（秘钥/Token）：直接填 xxx，解析为 {"token":"xxx"}
 """
 import json
 import os
@@ -40,9 +41,10 @@ def parse_cookie_item(item: str) -> dict:
         if "=" in part:
             key, value = part.split("=", 1)
             cookies[key.strip()] = value.strip()
-    if not cookies:
-        raise ValueError(f"无法解析 Cookie: {item[:120]}")
-    return cookies
+    if cookies:
+        return cookies
+    # 纯 Token / 秘钥：无 JSON、无 key=value
+    return {"token": item}
 
 
 def load_accounts(env_name: str) -> list[tuple[str, dict]]:

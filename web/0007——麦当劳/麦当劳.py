@@ -5,7 +5,7 @@
 # @文件介绍 :麦当劳 MCP 查询可领优惠券并一键领取
 # Token 申请：https://open.mcd.cn/mcp/doc
 # 青龙环境变量（前缀 MCD）：
-#   MCD_account  账号，格式 {"token":"xxx"}，多账号用 & 或换行分隔
+#   MCD_account  账号，可直接填 token，或 {"token":"xxx"}；多账号用 & 或换行分隔
 #   MCD_notify   通知开关，填 1 开启
 #   MCD_功能名   后续功能按此前缀扩展
 const $ = new Env('麦当劳')

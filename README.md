@@ -66,7 +66,7 @@ self.import_set = self.import_set.ImportSet("BD")
 | `ALI_account` | 阿里云盘账号，格式 `{"refresh_token":"xxx"}`，支持多账号 |
 | `ALI_notify` | 阿里云盘通知开关，填 `1` 开启 |
 | `ALI_switch_delay` | 阿里云盘随机延迟开关，填 `1` 开启 |
-| `MCD_account` | 麦当劳账号，格式 `{"token":"xxx"}`，支持多账号；Token 申请见 [open.mcd.cn/mcp/doc](https://open.mcd.cn/mcp/doc) |
+| `MCD_account` | 麦当劳账号，可直接填 token，或 `{"token":"xxx"}`，支持多账号；Token 申请见 [open.mcd.cn/mcp/doc](https://open.mcd.cn/mcp/doc) |
 | `MCD_notify` | 麦当劳通知开关，填 `1` 开启 |
 | `MCD_switch_delay` | 麦当劳随机延迟开关，填 `1` 开启 |
 
