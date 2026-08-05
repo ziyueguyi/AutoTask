@@ -38,29 +38,15 @@ class ImportSet:
         初始化通知
         :return :
         """
-        notify_spc = importlib.util.spec_from_file_location(
-            'notify',
-            str(self.tools_path / 'tools' / 'notify.py'),
-        )
+        notify_spc = importlib.util.spec_from_file_location('notify', str(self.tools_path / 'tools' / 'notify.py'))
         notify = importlib.util.module_from_spec(notify_spc)
         notify_spc.loader.exec_module(notify)
         return notify.Notify()
 
     def import_initialize(self):
         """加载 initialize，并传入同一前缀。"""
-        initialize_spc = importlib.util.spec_from_file_location(
-            'initialize',
-            str(self.tools_path / 'tools' / 'initialize.py'),
-        )
+        i_path = str(self.tools_path / 'tools' / 'initialize.py')
+        initialize_spc = importlib.util.spec_from_file_location('initialize',i_path)
         initialize = importlib.util.module_from_spec(initialize_spc)
         initialize_spc.loader.exec_module(initialize)
         return initialize.ImportSet(prefix=self.prefix)
-
-    def import_config_option(self):
-        config_option_spc = importlib.util.spec_from_file_location(
-            'ConfigOption',
-            str(self.tools_path / 'ConfigOption.py'),
-        )
-        config_option = importlib.util.module_from_spec(config_option_spc)
-        config_option_spc.loader.exec_module(config_option)
-        return config_option.ConfigOption(Path().resolve())

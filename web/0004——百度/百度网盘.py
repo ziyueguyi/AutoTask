@@ -24,11 +24,9 @@ class Template:
     def __init__(self) -> None:
         tools_path = Path(__file__).resolve().parent.parent.parent / "public"
         import_set_spc = util.spec_from_file_location("ImportSet", str(tools_path / "ImportSet.py"))
-        self.import_set = util.module_from_spec(import_set_spc)
-        import_set_spc.loader.exec_module(self.import_set)
-        self.import_set = self.import_set.ImportSet("BD")
-        self.initialize = self.import_set.import_initialize()
-        self.env_name = self.initialize.env_key("account")
+        import_set = util.module_from_spec(import_set_spc)
+        import_set_spc.loader.exec_module(import_set)
+        self.initialize = import_set.ImportSet("BD").import_initialize()
         self.session = requests.Session(timeout=10)
         self.session.headers.update({
             "Accept": "*/*",
@@ -170,7 +168,7 @@ class Template:
         self.initialize.info_message("签到开始")
         accounts = self.initialize.load_accounts()
         if not accounts:
-            self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.env_name}")
+            self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.initialize.env_key("account")}")
             return
         for ind, (name, cookies) in enumerate(accounts):
             self.initialize.info_message(f"共{len(accounts)}个账户，第{ind + 1}个账户：{name}")

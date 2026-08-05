@@ -19,11 +19,9 @@ class Template:
     def __init__(self) -> None:
         tools_path = Path(__file__).resolve().parent.parent.parent / 'public'
         import_set_spc = util.spec_from_file_location('ImportSet', str(tools_path / 'ImportSet.py'))
-        self.import_set = util.module_from_spec(import_set_spc)
-        import_set_spc.loader.exec_module(self.import_set)
-        self.import_set = self.import_set.ImportSet()
-        self.initialize = self.import_set.import_initialize()
-        self.config_option = self.import_set.import_config_option()
+        import_set = util.module_from_spec(import_set_spc)
+        import_set_spc.loader.exec_module(import_set)
+        self.initialize = import_set.ImportSet().import_initialize(prefix='SL')  # 请修改为该项目名称
         self.session = requests.Session(timeout=10)
         self.session.headers.update({
             'Accept': '*/*',
@@ -33,22 +31,14 @@ class Template:
         })
         self.init_config()
 
-    def init_config(self):
-        """
-        初始化方法
-        :return:
-        """
-        if not Path.exists(Path.joinpath(self.config_option.file_path, 'config.ini')):
-            self.config_option.write_config("账户1", "switch", "0")
-            self.config_option.write_config("账户1", "cookies", "")
-            self.initialize.info_message("请配置账户信息")
-            exit()
-
     def run(self):
         self.initialize.info_message("签到开始")
-        account_list = self.config_option.read_config_key()
-        for ind, sec in enumerate(account_list):
-            self.initialize.info_message(f"共{len(account_list)}个账户，第{ind + 1}个账户：{sec},")
+        accounts = self.initialize.load_accounts()
+        if not accounts:
+            self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.initialize.env_key("account")}")
+            return
+        for ind, sec in enumerate(accounts):
+            self.initialize.info_message(f"共{len(accounts)}个账户，第{ind + 1}个账户：{sec},")
             try:
                 pass
             except Exception as e:
