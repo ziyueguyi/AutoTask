@@ -62,6 +62,9 @@ self.import_set = self.import_set.ImportSet("BD")
 | `BD_notify` | 通知开关，填 `1` 开启 |
 | `BD_switch_delay` | 随机延迟开关，填 `1` 开启 |
 | `BD_功能名` | 后续功能按此前缀扩展 |
+| `ALI_account` | 阿里云盘账号，格式 `{"refresh_token":"xxx"}`，支持多账号 |
+| `ALI_notify` | 阿里云盘通知开关，填 `1` 开启 |
+| `ALI_switch_delay` | 阿里云盘随机延迟开关，填 `1` 开启 |
 
 通知渠道（`PUSH_KEY`、`DD_BOT_TOKEN`、`TG_BOT_TOKEN` 等）仍在青龙面板单独配置。
 

@@ -168,7 +168,7 @@ class Template:
         self.initialize.info_message("签到开始")
         accounts = self.initialize.load_accounts()
         if not accounts:
-            self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.initialize.env_key("account")}")
+            self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.initialize.env_key('account')}")
             return
         for ind, (name, cookies) in enumerate(accounts):
             self.initialize.info_message(f"共{len(accounts)}个账户，第{ind + 1}个账户：{name}")
