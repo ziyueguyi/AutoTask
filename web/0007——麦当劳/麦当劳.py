@@ -127,8 +127,7 @@ class McDonald:
 
     def run(self) -> None:
         self.initialize.info_message("麦当劳任务开始")
-        # accounts = self.initialize.load_accounts()
-        accounts = [('1', {'token': '2CfyvJCu5q3XmdHw0seNS9BjF4k1hxKy'})]
+        accounts = self.initialize.load_accounts()
         if not accounts:
             self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.env_name}")
             return
