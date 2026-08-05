@@ -1,0 +1,14 @@
+web/0007——麦当劳/麦当劳.py
+  h_756b7de6229b75 38-40,64-66,70-72,79-99,102-114,116,118-126,130-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "23aa342c62e1c6a743e3617d58e91215c42ba04b",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
