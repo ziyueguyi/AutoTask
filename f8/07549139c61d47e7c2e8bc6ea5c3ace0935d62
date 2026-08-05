@@ -1,0 +1,18 @@
+Template.py
+  h_756b7de6229b75 22-24,36-41
+public/ImportSet.py
+  h_756b7de6229b75 41,48-49,52
+web/0004——百度/百度网盘.py
+  h_756b7de6229b75 27-29,171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "f807549139c61d47e7c2e8bc6ea5c3ace0935d62",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
