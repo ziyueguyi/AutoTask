@@ -60,7 +60,7 @@ class McDonald:
         return self.request(token, "auto-bind-coupons")
 
     def get_my_coupons(self, token: str) -> Any:
-        return self.request(token, "my-coupons")
+        return self.request(token, "query-my-coupons")
 
     def get_campaign_calendar(self, token: str, specified_date: str | None = None) -> Any:
         return self.request(token, "campaign-calender", {"specifiedDate": specified_date} if specified_date else {})
