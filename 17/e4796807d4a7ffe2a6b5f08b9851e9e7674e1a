@@ -1,0 +1,30 @@
+README.md
+  h_756b7de6229b75 51-67
+public/ImportSet.py
+  h_756b7de6229b75 8-12,19-23,26-35,41-44,50-54,57,60-63
+public/config.ini
+  h_756b7de6229b75 2-6
+public/tools/initialize.py
+  h_756b7de6229b75 3,10-15,21-26,30-42,97,102,104-109,119-127
+public/tools/notify.py
+  h_756b7de6229b75 576-577,579-583,588,592-593,595-596,600-601,606-610
+web/0004——百度/百度网盘.py
+  h_756b7de6229b75 8-11,29,31,171
+web/0004——百度/贴吧.py
+  h_756b7de6229b75 8,31,33,135
+web/0004——百度/贴吧任务签到.py
+  h_756b7de6229b75 8,28,30,102
+web/0006——夸克网盘/夸克网盘.py
+  h_756b7de6229b75 1-199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "17e4796807d4a7ffe2a6b5f08b9851e9e7674e1a",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
