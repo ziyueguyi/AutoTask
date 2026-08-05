@@ -38,22 +38,14 @@ class McDonald:
         response = self.session.post(self.BASE_URL, headers={"Authorization": f"Bearer {token}"},
                                      json={"jsonrpc": "2.0", "id": int(time.time() * 1000), "method": "tools/call",
                                            "params": {"name": tool_name, "arguments": args or {}}, }, )
-        data = response.json()
-        if isinstance(data, dict) and data.get("error"):
-            raise RuntimeError(data["error"].get("message") or "请求失败")
-        if isinstance(data, dict) and "result" in data:
-            return data["result"]
-        return data
-
-    @staticmethod
-    def parse_text_content(tool_result: Any) -> str:
-        """解析 MCP 返回的文本内容。"""
-        if not isinstance(tool_result, dict):
-            return ""
-        for item in tool_result.get("content") or []:
-            if isinstance(item, dict) and item.get("type") == "text":
-                return item.get("text") or ""
-        return ""
+        if response.status_code == 200 and 'result' in response.text:
+            data = response.json().get('result', {})
+            if not data.get('isError') and data.get('structuredContent', {}).get('success'):
+                return data.get('structuredContent', {}).get('data', [])
+            else:
+                return {}
+        else:
+            return {}
 
     def get_available_coupons(self, token: str) -> Any:
         return self.request(token, "available-coupons")
@@ -79,51 +71,63 @@ class McDonald:
         account_info = self.get_my_account(token)
         self.initialize.info_message("【账户信息】", is_flag=True)
         if account_info:
-            use_content = account_info.get('structuredContent', {}).get("data")
-            self.initialize.info_message(f"#####累计积分：{use_content.get('accumulativePoint')}", is_flag=True)
-            self.initialize.info_message(f"#####可用积分：{use_content.get('availablePoint')}", is_flag=True)
-            self.initialize.info_message(f"#####冻结积分：{use_content.get('frozenPoint')}", is_flag=True)
-            self.initialize.info_message(f"本月将过期积分：{use_content.get('currentMouthExpirePoint')}", is_flag=True)
-            self.initialize.info_message(f"下月将过期积分：{use_content.get('nextMouthExpirePoint')}", is_flag=True)
-            self.initialize.info_message(f"上月已过期积分：{use_content.get('lastMouthExpirePoint')}", is_flag=True)
-            self.initialize.info_message(f"###已过期积分：{use_content.get('expiredPoint')}", is_flag=True)
-            self.initialize.info_message(f"###已使用积分：{use_content.get('usedPoint')}", is_flag=True)
+            self.initialize.info_message(f"#####累计积分：{account_info.get('accumulativePoint')}", is_flag=True)
+            self.initialize.info_message(f"#####可用积分：{account_info.get('availablePoint')}", is_flag=True)
+            self.initialize.info_message(f"#####冻结积分：{account_info.get('frozenPoint')}", is_flag=True)
+            self.initialize.info_message(f"本月将过期积分：{account_info.get('currentMouthExpirePoint')}", is_flag=True)
+            self.initialize.info_message(f"下月将过期积分：{account_info.get('nextMouthExpirePoint')}", is_flag=True)
+            self.initialize.info_message(f"上月已过期积分：{account_info.get('lastMouthExpirePoint')}", is_flag=True)
+            self.initialize.info_message(f"###已过期积分：{account_info.get('expiredPoint')}", is_flag=True)
+            self.initialize.info_message(f"###已使用积分：{account_info.get('usedPoint')}", is_flag=True)
+        else:
+            self.initialize.error_message(f"账户信息查询失败", is_flag=True)
         coupons_list = self.get_available_coupons(token)
         self.initialize.info_message("【优惠券信息】", is_flag=True)
         unreceived_count = 0
-        if not coupons_list.get("isError"):
-            for coupon in coupons_list.get('structuredContent', {}).get("data", []):
+        if coupons_list:
+            for coupon in coupons_list:
                 msg = f"券名：{coupon.get('couponName')}，状态：{coupon.get('label')}，图片：{coupon.get('couponImage')}"
                 self.initialize.info_message(msg, is_flag=True)
                 unreceived_count += 1 if coupon.get('label') not in ['已领取', '已领完'] else 0
-        if unreceived_count:
-            self.initialize.info_message(f"{account_name} 发现 {unreceived_count} 张可领取优惠券", is_flag=True)
-            self.initialize.info_message(f"{account_name} 正在一键领取优惠券...")
-            bind_coupons = self.auto_bind_coupons(token)
-            if not bind_coupons.get('isError'):
-                if bind_coupons.get("structuredContent", {}).get('success'):
+            if unreceived_count:
+                self.initialize.info_message(f"{account_name} 发现 {unreceived_count} 张可领取优惠券", is_flag=True)
+                self.initialize.info_message(f"{account_name} 正在一键领取优惠券...")
+                bind_coupons = self.auto_bind_coupons(token)
+                if bind_coupons:
                     self.initialize.info_message(bind_coupons)
-                elif bind_coupons.get("structuredContent", {}).get('code') == 499:
-                    self.initialize.error_message(bind_coupons.get("structuredContent", {}).get('message'))
+                    self.initialize.info_message(f"{account_name} 成功领取 {len(bind_coupons)} 张", is_flag=True)
                 else:
                     self.initialize.error_message(bind_coupons)
-            get_coupons = bind_coupons.get('structuredContent', {}).get('data') or []
-            if get_coupons:
-                self.initialize.info_message(f"{account_name} 成功领取 {len(get_coupons)} 张", is_flag=True)
-            # if coupon_names:
-            #     self.initialize.info_message(f"{account_name} 领取券：[{', '.join(coupon_names)}]", is_flag=True)
+                # if coupon_names:
+                #     self.initialize.info_message(f"{account_name} 领取券：[{', '.join(coupon_names)}]", is_flag=True)
+            else:
+                self.initialize.info_message(f"{account_name} 暂无可领取的新优惠券")
         else:
-            self.initialize.info_message(f"{account_name} 暂无可领取的新优惠券")
+            self.initialize.error_message(f"优惠券查询失败", is_flag=True)
         self.initialize.info_message(f"{account_name} 正在查询我的优惠券...")
         available_coupons = self.get_my_coupons(token)
-        if not available_coupons.get('isError'):
-            self.initialize.info_message("【我的优惠券】", is_flag=True)
-            available_coupons_list = available_coupons.get('structuredContent', {}).get("data", []).get("coupons")
+        self.initialize.info_message("【我的优惠券】", is_flag=True)
+        if available_coupons:
+            available_coupons_list = available_coupons.get("coupons")
             for coupon in available_coupons_list:
                 msg = f"券名：{coupon.get('title')}，日期限制：{coupon.get('datetimeText')}，用券价格：{coupon.get('discountInfo', {}).get('discountValue')}"
                 self.initialize.info_message(msg, is_flag=True)
             msg = f"账户：{account_name}当前共有可用张优惠券：{len(available_coupons_list)}张"
             self.initialize.info_message(msg, is_flag=True)
+        else:
+            self.initialize.error_message("我的优惠券获取失败", is_flag=True)
+        campaign_list = self.campaign_calendar(token)
+        self.initialize.info_message("【活动日历】", is_flag=True)
+        if campaign_list:
+            subscribed_events = campaign_list.get("subscribedEvents", [])
+            for se in subscribed_events:
+                coupon_info = se.get("couponInfo", {})
+                sd = coupon_info.get("tradeStartDateTime")
+                ed = coupon_info.get("tradeEndDateTime")
+                msg = f"券名：{se.get('activityTitle')}，日期限制：{sd}_{ed}，用券价格：{coupon_info.get('discountInfo', {}).get('discountValue')}"
+                self.initialize.info_message(msg, is_flag=True)
+        else:
+            self.initialize.error_message("活动日历查询失败", is_flag=True)
 
     def run(self) -> None:
         self.initialize.info_message("麦当劳任务开始")
