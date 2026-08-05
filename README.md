@@ -69,6 +69,9 @@ self.import_set = self.import_set.ImportSet("BD")
 | `MCD_account` | 麦当劳账号，可直接填 token，或 `{"token":"xxx"}`，支持多账号；Token 申请见 [open.mcd.cn/mcp/doc](https://open.mcd.cn/mcp/doc) |
 | `MCD_notify` | 麦当劳通知开关，填 `1` 开启 |
 | `MCD_switch_delay` | 麦当劳随机延迟开关，填 `1` 开启 |
+| `QUARK_account` | 夸克网盘 Cookie，格式 `a=1;b=2`，支持多账号 |
+| `QUARK_notify` | 夸克网盘通知开关，填 `1` 开启 |
+| `QUARK_switch_delay` | 夸克网盘随机延迟开关，填 `1` 开启 |
 
 通知渠道（`PUSH_KEY`、`DD_BOT_TOKEN`、`TG_BOT_TOKEN` 等）仍在青龙面板单独配置。
 
