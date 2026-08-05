@@ -1,0 +1,16 @@
+README.md
+  h_756b7de6229b75 72-74
+web/0006——夸克网盘/夸克网盘.py
+  h_756b7de6229b75 4-9,11,13-81,85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "e3a4559780578a07da7f08b2b68b2321960161dd",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
