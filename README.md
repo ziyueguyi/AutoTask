@@ -48,6 +48,23 @@ fake_useragent
 
 ![image-20230413142448646](https://fastly.jsdelivr.net/gh/HeiDaotu/img-bucket/img/202304131425904.png)
 
+#### 环境变量
+
+脚本通过 `ImportSet("前缀")` 绑定青龙变量，统一为 `{前缀}_{功能}`。以百度为例：
+
+```python
+self.import_set = self.import_set.ImportSet("BD")
+```
+
+| 变量名 | 说明 |
+|--------|------|
+| `BD_account` | 账号 Cookie，多账号用 `&` 或换行分隔 |
+| `BD_notify` | 通知开关，填 `1` 开启 |
+| `BD_switch_delay` | 随机延迟开关，填 `1` 开启 |
+| `BD_功能名` | 后续功能按此前缀扩展 |
+
+通知渠道（`PUSH_KEY`、`DD_BOT_TOKEN`、`TG_BOT_TOKEN` 等）仍在青龙面板单独配置。
+
 #### 订阅管理
 
 我们需要把仓库的脚本添加到订阅里，这样可以获取脚本，同样可以不定时获取到最新的脚本(取决于你是否禁用)。

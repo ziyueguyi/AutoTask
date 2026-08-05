@@ -5,7 +5,10 @@
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/20 11:40
 # @文件介绍 :网页登录百度网盘svip账号，只需要BDUSS_BFESS和STOKEN即可：{"BDUSS_BFESS":"","STOKEN":""}
-# 青龙环境变量 BAIDU_PAN_COOKIE，多账号用 & 或换行分隔{"BDUSS_BFESS":"账号1","STOKEN":"xxx"}&{"BDUSS_BFESS":"账号2","STOKEN":"yyy"}
+# 青龙环境变量（前缀 BD）：
+#   BD_account  账号，多账号用 & 或换行分隔
+#   BD_notify   通知开关，填 1 开启
+#   BD_功能名   后续功能按此前缀扩展
 const $ = new Env('百度网盘')
 cron: 19 7 * * *
 """
@@ -23,15 +26,9 @@ class Template:
         import_set_spc = util.spec_from_file_location("ImportSet", str(tools_path / "ImportSet.py"))
         self.import_set = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(self.import_set)
-        self.import_set = self.import_set.ImportSet()
+        self.import_set = self.import_set.ImportSet("BD")
         self.initialize = self.import_set.import_initialize()
-        account_loader_spc = util.spec_from_file_location(
-            "account_loader", str(tools_path / "tools" / "account_loader.py")
-        )
-        account_loader = util.module_from_spec(account_loader_spc)
-        account_loader_spc.loader.exec_module(account_loader)
-        self.load_accounts = account_loader.load_accounts
-        self.env_name = "BAIDU_COOKIE"
+        self.env_name = self.initialize.env_key("account")
         self.session = requests.Session(timeout=10)
         self.session.headers.update({
             "Accept": "*/*",
@@ -171,7 +168,7 @@ class Template:
 
     def run(self):
         self.initialize.info_message("签到开始")
-        accounts = self.load_accounts(self.env_name)
+        accounts = self.initialize.load_accounts()
         if not accounts:
             self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.env_name}")
             return

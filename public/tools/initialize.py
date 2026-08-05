@@ -1,26 +1,44 @@
 import importlib.util
 import logging
+import os
 import random
 import time
 from pathlib import Path
 
 
 class ImportSet:
-    def __init__(self, model_list=None):
+    def __init__(self, prefix=None, model_list=None):
+        """
+        :param prefix: 青龙环境变量前缀，如 "BD" → BD_notify / BD_account / BD_switch_delay
+        :param model_list: 兼容旧参数，暂未使用
+        """
+        self.prefix = str(prefix).strip() if prefix else ""
         self.model_list = model_list if model_list else []
         tools_path = Path(__file__).resolve().parent
-        # 获取当前脚本的上级目录
-        public_path = tools_path.parent
         notify_spc = importlib.util.spec_from_file_location('notify', str(tools_path / 'notify.py'))
         self.notify = importlib.util.module_from_spec(notify_spc)
         notify_spc.loader.exec_module(self.notify)
-
-        config_option_spc = importlib.util.spec_from_file_location('ConfigOption', str(public_path / 'ConfigOption.py'))
-        config_option = importlib.util.module_from_spec(config_option_spc)
-        config_option_spc.loader.exec_module(config_option)
-        self.config_option = config_option.ConfigOption(public_path)
+        account_loader_spc = importlib.util.spec_from_file_location(
+            'account_loader',
+            str(tools_path / 'account_loader.py'),
+        )
+        self.account_loader = importlib.util.module_from_spec(account_loader_spc)
+        account_loader_spc.loader.exec_module(self.account_loader)
         self.message_list = []  # 存储消息数据
         self.init()
+
+    def env_key(self, feature: str) -> str:
+        """拼接青龙环境变量名：{prefix}_{feature}。"""
+        feature = str(feature).strip()
+        if not self.prefix:
+            return feature
+        return f"{self.prefix}_{feature}"
+
+    def load_accounts(self, feature: str = "account"):
+        """
+        从青龙环境变量读取账号，默认读取 {prefix}_account。
+        """
+        return self.account_loader.load_accounts(self.env_key(feature))
 
     @staticmethod
     def init_logger():
@@ -76,13 +94,19 @@ class ImportSet:
 
     def send_notify(self, title):
         """
-        发送通知
+        发送通知。开关读取青龙变量 {prefix}_notify。
 
         :param title:
         :return:
         """
+        config_name = self.env_key("notify")
         msg = '\n'.join(self.message_list)
-        self.notify.Notify().send(f"【{title}】", msg, project_name=title)
+        self.notify.Notify().send(
+            f"【{title}】",
+            msg,
+            project_name=title,
+            config_name=config_name,
+        )
 
     def init(self):
         """
@@ -92,9 +116,15 @@ class ImportSet:
         """
         # 初始化日志
         self.init_logger()
-        # 随机延迟
-        switch_delay = self.config_option.read_config_key("系统配置", "switch_delay", field_type=bool)
-        logging.info(f"{'开启' if switch_delay else '未开启'}随机延迟时间，config.json里面switch_delay可以配置")
+        # 随机延迟：{prefix}_switch_delay
+        delay_key = self.env_key("switch_delay")
+        switch_delay = os.getenv(delay_key, "0").strip().lower() in {
+            "1", "true", "yes", "on"
+        }
+        logging.info(
+            f"{'开启' if switch_delay else '未开启'}随机延迟时间，"
+            f"可在青龙面板配置环境变量 {delay_key}"
+        )
         if switch_delay:
             delay = int(random.uniform(10, 300))
             logging.info(f"开启延迟，{delay}秒后执行代码")

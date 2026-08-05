@@ -14,7 +14,6 @@ import urllib.parse
 from email.header import Header
 from email.mime.text import MIMEText
 from email.utils import formataddr
-from importlib import util
 from pathlib import Path
 
 import requests
@@ -22,13 +21,6 @@ import requests
 
 class Notify:
     def __init__(self):
-        tools_path = Path(__file__).resolve().parent
-        # 获取当前脚本的上级目录
-        public_path = tools_path.parent
-        config_option_spc = util.spec_from_file_location('ConfigOption', str(public_path / 'ConfigOption.py'))
-        config_option = util.module_from_spec(config_option_spc)
-        config_option_spc.loader.exec_module(config_option)
-        self.config_option = config_option.ConfigOption(public_path)
         self.mutex = threading.Lock()
         # 通知服务
         # fmt: off
@@ -581,30 +573,41 @@ class Notify:
         res = requests.get(url).json()
         return res["hitokoto"] + "    ----" + res["from"]
 
-    def read_config(self, project_name=None):
+    @staticmethod
+    def read_config(config_name="notify", project_name=None):
         """
-        根据系统配置 notice 判断是否推送。
-        notice=all 表示全部推送；notice=百度网盘,贴吧 表示仅列出的项目推送。
+        从青龙环境变量读取通知开关。
+
+        config_name 一般为 {prefix}_notify，例如 ImportSet("BD") → BD_notify。
+        1/true/yes/on/all 表示开启，0/false/no/off 或未配置表示关闭；
+        也兼容用逗号分隔项目名称。
         """
         if project_name is None:
             project_name = Path(sys.argv[0]).stem
 
-        notice = self.config_option.read_config_key(section="系统配置", key="notice")
+        notice = os.getenv(config_name, "")
         if not notice:
             return False
         notice = notice.strip()
-        if notice.lower() == "all":
+        normalized = notice.lower()
+        if normalized in {"1", "true", "yes", "on", "all"}:
             return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
         enabled = [name.strip() for name in notice.split(",") if name.strip()]
         return project_name in enabled
 
-    def send(self, title: str, content: str, project_name: str = None) -> None:
+    def send(self, title: str, content: str, project_name: str = None,
+             config_name: str = "notify") -> None:
         if project_name is None:
             match = re.match(r'^【(.+)】$', title)
             project_name = match.group(1) if match else Path(sys.argv[0]).stem
 
-        if not self.read_config(project_name):
-            self.print_info(f"{title} 已设置不进行推送，如需打开请在系统配置 notice 中加入 {project_name}")
+        if not self.read_config(config_name=config_name, project_name=project_name):
+            self.print_info(
+                f"{title} 未开启推送，请在青龙面板设置环境变量 "
+                f"{config_name}=1"
+            )
             return
         elif not content:
             self.print_info(f"{title} 推送内容为空！")

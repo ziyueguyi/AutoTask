@@ -5,7 +5,7 @@
 # @作者名称 :sxzhang1
 # @日期时间 : 2025/5/19 11:04
 # @文件介绍 :网页登录百度贴吧账号，只需要cookies的BDUSS和STOKEN即可：{"BDUSS":"","STOKEN":""}
-# 青龙环境变量 TIEBA_COOKIE，多账号用 & 或换行分隔
+# 青龙环境变量（前缀 BD）：BD_account 账号；BD_notify 通知开关
 # 示例：{"BDUSS":"账号1","STOKEN":"xxx"}&{"BDUSS":"账号2","STOKEN":"yyy"}
 new Env('百度贴吧');
 cron: 20 6 * * *
@@ -28,15 +28,9 @@ class PostBar:
         import_set_spc = util.spec_from_file_location('ImportSet', str(tools_path / 'ImportSet.py'))
         self.import_set = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(self.import_set)
-        self.import_set = self.import_set.ImportSet()
+        self.import_set = self.import_set.ImportSet("BD")
         self.initialize = self.import_set.import_initialize()
-        account_loader_spc = util.spec_from_file_location(
-            'account_loader', str(tools_path / 'tools' / 'account_loader.py')
-        )
-        account_loader = util.module_from_spec(account_loader_spc)
-        account_loader_spc.loader.exec_module(account_loader)
-        self.load_accounts = account_loader.load_accounts
-        self.env_name = 'BAIDU_COOKIE'
+        self.env_name = self.initialize.env_key("account")
         self.session = requests.Session(timeout=10)
         self.session.headers.update({
             'connection': 'keep-alive',
@@ -138,7 +132,7 @@ class PostBar:
 
     def run(self):
         self.initialize.info_message("贴吧签到开始")
-        accounts = self.load_accounts(self.env_name)
+        accounts = self.initialize.load_accounts()
         if not accounts:
             self.initialize.error_message(f"未配置账号，请在青龙面板设置环境变量 {self.env_name}")
             self.initialize.send_notify("贴吧")
