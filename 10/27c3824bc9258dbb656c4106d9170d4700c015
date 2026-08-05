@@ -1,0 +1,18 @@
+README.md
+  h_756b7de6229b75 69
+public/tools/account_loader.py
+  h_756b7de6229b75 3,9-12,44-47
+web/0007——麦当劳/麦当劳.py
+  h_756b7de6229b75 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "1027c3824bc9258dbb656c4106d9170d4700c015",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
