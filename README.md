@@ -32,6 +32,7 @@
 | [百度网盘](https://pan.baidu.com/disk/main/) | ✅     | ❌   | ❌   | ✅       | 每日签到                             |
 | [麦当劳](https://open.mcd.cn/mcp/doc)         | ❌     | ❌   | ✅   | ✅       | 查询并一键领取优惠券；Token：[申请文档](https://open.mcd.cn/mcp/doc) |
 | [美团天天神券](https://h5.waimai.meituan.com/) | ❌     | ❌   | ✅   | ✅       | 签到领豆、兑必中符、抢红包；Token 从 H5 Cookie 获取 |
+| [天机爻](https://tianjiyao.com/)               | ✅     | ✅   | ❌   | ✅       | 每日签到领积分 + 每日一签查询推送 |
 ### 青龙
 
 #### 依赖管理
@@ -74,12 +75,13 @@ self.import_set = self.import_set.ImportSet("BD")
 | `QUARK_notify` | 夸克网盘通知开关，填 `1` 开启 |
 | `QUARK_switch_delay` | 夸克网盘随机延迟开关，填 `1` 开启 |
 | `MT_account` | 美团天天神券 token / 整段 Cookie / JSON；多账号用 `&&` 或换行（Cookie 内含 `&` 勿用单 `&` 分隔） |
-| `MT_mtgsig` | 可选。openh5 查券包 403 时填抓包的 `mtgsig` JSON |
 | `MT_notify` | 美团通知开关，填 `1` 开启 |
 | `MT_latitude` / `MT_longitude` | 默认经纬度（去小数点），账号 JSON 可覆盖 |
 | `MT_propId` | 兑换必中符类型，默认 `5` |
 | `MT_exchangeCoinNumber` / `MT_setexchangedou` | 兑换豆数 / 攒够才兑，默认 `1800` |
 | `MT_grab_big` | 填 `1` 开启大额红包监测 |
+| `TJY_account` | 天机爻账号 JSON：`{"email":"邮箱","password":"密码"}`，可选加 `cookie`；多账号用 `&&` 或换行 |
+| `TJY_notify` | 天机爻通知开关，填 `1` 开启 |
 
 通知渠道（`PUSH_KEY`、`DD_BOT_TOKEN`、`TG_BOT_TOKEN` 等）仍在青龙面板单独配置。
 
@@ -123,9 +125,9 @@ __puus=xxx; __pus=yyy; __kps=zzz; __ktd=aaa; __uid=bbb
 4. 在 Request Headers 的 `Cookie` 中找到 `token=...;`，**只复制 token 值**（不要带 `token=` 和分号）
 5. 写入青龙环境变量 `MT_account`
 
-也可直接把整段 Cookie 贴进 `MT_account`，脚本会自动解析其中的 `token`；查外卖券包建议贴整段 Cookie，若返回 403 再另设 `MT_mtgsig`。
+也可直接把整段 Cookie 贴进 `MT_account`，脚本会自动解析其中的 `token`。
 
-任务结束推送会包含神券红包 / 券包的 **标题、效期、满减**。
+任务结束推送会包含神券红包的 **标题、效期、满减**。
 
 单账号 JSON 示例（可带经纬度）：
 
@@ -134,6 +136,22 @@ __puus=xxx; __pus=yyy; __kps=zzz; __ktd=aaa; __uid=bbb
 ```
 
 经纬度去掉小数点；默认可用成都样例 `30657401` / `104065827`。建议 cron 对准神券场次，例如 `5 11,17,21 * * *`。
+
+##### 天机爻账号配置
+
+青龙变量 `TJY_account` 一般只填账密即可：
+
+```text
+{"email":"你的邮箱","password":"你的密码"}
+```
+
+若登录被 Cloudflare 拦，再补浏览器 Cookie：
+
+```text
+{"email":"你的邮箱","password":"你的密码","cookie":"cf_clearance=xxx; ..."}
+```
+
+多账号用 `&&` 或换行分隔。建议 cron：`10 8 * * *`。
 
 #### 订阅管理
 
