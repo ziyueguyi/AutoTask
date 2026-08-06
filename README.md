@@ -27,8 +27,8 @@
 | [交易猫](https://www.jiaoyimao.com/)         | ✅     | ❌   | ❌   | ❌       | ~~每日签到得积分~~                    |
 | [科学刀论坛](https://www.kxdao.net/)         | ✅     | ❌   | ❌   | ❌       | ~~每日签到~~                         |
 | [夸克网盘](https://pan.quark.cn/)            | ✅     | ❌   | ❌   | ✅       | 每日签到抽奖得空间容量                 |
-| [稀土掘金](https://invites.fun/)             | ✅     | ❌   | ❌   | ❌       | 每日签到                             |
-| [天翼网盘](https://juejin.cn/)               | ✅     | ❌   | ❌   | ✅       | 每日签到抽奖得空间容量                 |
+| [稀土掘金](https://juejin.cn/)               | ✅     | ❌   | ❌   | ✅       | Cookie 签到、免费抽奖、幸运值统计         |
+| [天翼网盘](https://cloud.189.cn/)             | ✅     | ❌   | ❌   | ✅       | Cookie 登录、每日签到抽奖得空间容量       |
 | [百度网盘](https://pan.baidu.com/disk/main/) | ✅     | ❌   | ❌   | ✅       | 每日签到                             |
 | [麦当劳](https://open.mcd.cn/mcp/doc)         | ❌     | ❌   | ✅   | ✅       | 查询并一键领取优惠券；Token：[申请文档](https://open.mcd.cn/mcp/doc) |
 | [美团天天神券](https://h5.waimai.meituan.com/) | ❌     | ❌   | ✅   | ✅       | 签到领豆、兑必中符、抢红包；Token 从 H5 Cookie 获取 |
@@ -45,6 +45,7 @@
 ```tex
 curl_cffi
 fake_useragent
+rsa
 ```
 
 </details>
@@ -82,6 +83,10 @@ self.import_set = self.import_set.ImportSet("BD")
 | `MT_grab_big` | 填 `1` 开启大额红包监测 |
 | `TJY_account` | 天机爻账号 JSON：`{"email":"邮箱","password":"密码"}`，可选加 `cookie`；多账号用 `&&` 或换行 |
 | `TJY_notify` | 天机爻通知开关，填 `1` 开启 |
+| `TY_account` | 天翼网盘网页 Cookie（必须含 `COOKIE_LOGIN_USER`）；多账号用 `&&` 或换行 |
+| `TY_notify` | 天翼网盘通知开关，填 `1` 开启 |
+| `JJ_account` | 稀土掘金网页 Cookie（含 `sessionid`）；多账号用 `&&` 或换行 |
+| `JJ_notify` | 稀土掘金通知开关，填 `1` 开启 |
 
 通知渠道（`PUSH_KEY`、`DD_BOT_TOKEN`、`TG_BOT_TOKEN` 等）仍在青龙面板单独配置。
 
@@ -152,6 +157,23 @@ __puus=xxx; __pus=yyy; __kps=zzz; __ktd=aaa; __uid=bbb
 ```
 
 多账号用 `&&` 或换行分隔。建议 cron：`10 8 * * *`。
+
+##### 天翼网盘 Cookie 获取方法
+
+青龙变量 `TY_account` **只支持网页 Cookie**（必须含 `COOKIE_LOGIN_USER`）：
+
+```text
+COOKIE_LOGIN_USER=xxx; JSESSIONID=yyy; apm_key=...; apm_uid=...; apm_ct=...; apm_sid=...; apm_ua=...
+```
+
+获取步骤：
+
+1. 浏览器登录 [天翼云盘](https://cloud.189.cn/)
+2. 按 `F12` → **Application** → **Cookies** → `https://cloud.189.cn`
+3. 至少复制 `COOKIE_LOGIN_USER`（建议连同 `JSESSIONID`、`apm_*` 一起）
+4. 写成一行 `name=value`，多项用 `; ` 分隔，写入 `TY_account`
+
+多账号用 `&&` 或换行分隔。Cookie 过期后重新登录复制即可。建议 cron：`10 9 * * *`。
 
 #### 订阅管理
 
