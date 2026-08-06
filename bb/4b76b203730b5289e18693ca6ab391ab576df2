@@ -1,0 +1,18 @@
+.gitignore
+  h_756b7de6229b75 16
+README.md
+  h_756b7de6229b75 30-31,48,86-89,161-177
+web/0002——天翼网盘/天翼网盘.py
+  h_756b7de6229b75 1-303
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "bb4b76b203730b5289e18693ca6ab391ab576df2",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
