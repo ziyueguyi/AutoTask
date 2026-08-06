@@ -175,6 +175,31 @@ COOKIE_LOGIN_USER=xxx; JSESSIONID=yyy; apm_key=...; apm_uid=...; apm_ct=...; apm
 
 多账号用 `&&` 或换行分隔。Cookie 过期后重新登录复制即可。建议 cron：`10 9 * * *`。
 
+##### 稀土掘金 Cookie 获取方法
+
+青龙变量 `JJ_account` 填网页 Cookie（需含 `sessionid`）：
+
+```text
+sessionid=xxx; sid_tt=xxx; sessionid_ss=xxx; ...
+```
+
+获取步骤：
+
+1. 浏览器登录 [稀土掘金](https://juejin.cn/)
+2. 按 `F12` → **Application** → **Cookies** → `https://juejin.cn`
+3. 复制整段 Cookie（至少 `sessionid`）
+4. 写入 `JJ_account`
+
+功能对齐 [juejin-helper](https://github.com/iDerekLi/juejin-helper) 签到工作流：每日签到、免费抽奖、幸运值统计（沾喜气 / Bugfix 收集已停用未接入）。
+
+签到 / 抽奖接口现需风控参数 `a_bogus`（可选再加 `msToken`）。仅 Cookie 时可登录并查矿石，但签到/抽奖会空响应。完整配置示例：
+
+```text
+{"cookie":"sessionid=xxx; ...","msToken":"...","a_bogus":"...","csrf":"请求头 x-secsdk-csrf-token 的值"}
+```
+
+获取：打开 [签到页](https://juejin.cn/user/center/signin) → F12 → Network → 点签到/抽奖 → 找 `check_in` 或 `lottery/draw` → 复制 Query 的 `msToken`、`a_bogus`，以及 Request Headers 的 `x-secsdk-csrf-token`（写入 `csrf`）。这些参数会过期，失效后需重抓。多账号用 `&&` 或换行。建议 cron：`22 6 * * *`。
+
 #### 订阅管理
 
 我们需要把仓库的脚本添加到订阅里，这样可以获取脚本，同样可以不定时获取到最新的脚本(取决于你是否禁用)。

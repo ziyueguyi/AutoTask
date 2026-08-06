@@ -279,7 +279,6 @@ class TianyiCloud:
     def run(self) -> None:
         self.initialize.info_message("天翼网盘开始")
         accounts = self.initialize.load_accounts()
-
         if not accounts:
             self.initialize.error_message(
                 f"未配置账号。请设置 {self.env_name}=Cookie（必须含 COOKIE_LOGIN_USER）"
