@@ -1,0 +1,18 @@
+README.md
+  h_756b7de6229b75 35,83-84,128,130,140-155
+web/0008——美团天天神券/美团天天神券.py
+  h_756b7de6229b75 9,124,134,234-235,237-238,240-243,245,527
+web/0009——天机爻/天机爻.py
+  h_756b7de6229b75 1-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "ce229d075937e5dc1eff377f4accd8762ae136cc",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
