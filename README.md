@@ -63,17 +63,47 @@ self.import_set = self.import_set.ImportSet("BD")
 | `BD_notify` | 通知开关，填 `1` 开启 |
 | `BD_switch_delay` | 随机延迟开关，填 `1` 开启 |
 | `BD_功能名` | 后续功能按此前缀扩展 |
-| `ALI_account` | 阿里云盘账号，格式 `{"refresh_token":"xxx"}`，支持多账号 |
+| `ALI_account` | 阿里云盘账号，可直接填 `refresh_token`，或 `{"refresh_token":"xxx"}`，支持多账号 |
 | `ALI_notify` | 阿里云盘通知开关，填 `1` 开启 |
 | `ALI_switch_delay` | 阿里云盘随机延迟开关，填 `1` 开启 |
 | `MCD_account` | 麦当劳账号，可直接填 token，或 `{"token":"xxx"}`，支持多账号；Token 申请见 [open.mcd.cn/mcp/doc](https://open.mcd.cn/mcp/doc) |
 | `MCD_notify` | 麦当劳通知开关，填 `1` 开启 |
 | `MCD_switch_delay` | 麦当劳随机延迟开关，填 `1` 开启 |
-| `QUARK_account` | 夸克网盘 Cookie，格式 `a=1;b=2`，支持多账号 |
+| `QUARK_account` | 夸克网盘 Cookie 字符串，多账号用换行 / `&` / `&&` 分隔 |
 | `QUARK_notify` | 夸克网盘通知开关，填 `1` 开启 |
 | `QUARK_switch_delay` | 夸克网盘随机延迟开关，填 `1` 开启 |
 
 通知渠道（`PUSH_KEY`、`DD_BOT_TOKEN`、`TG_BOT_TOKEN` 等）仍在青龙面板单独配置。
+
+##### 阿里云盘 `refresh_token` 获取方法
+
+1. 浏览器访问 [阿里云盘网页版](https://www.aliyundrive.com) 并登录  
+2. 按 `F12` 打开开发者工具 → **Console（控制台）**  
+3. 执行：
+
+```js
+JSON.parse(localStorage.token).refresh_token
+```
+
+4. 复制输出的字符串，写入青龙环境变量 `ALI_account`（可直接填纯字符串，多账号用 `&` 或换行分隔）
+
+也可在 **Application → Local Storage → https://www.aliyundrive.com → token** 中手动复制 `refresh_token`。
+
+##### 夸克网盘 Cookie 获取方法
+
+1. 浏览器访问 [夸克网盘网页版](https://pan.quark.cn) 并登录  
+2. 按 `F12` 打开开发者工具 → **Application**（或 **应用**）标签页  
+3. 左侧找到 **Cookies** → `https://pan.quark.cn`  
+4. 复制全部 Cookie，整理成一行字符串（`name=value`，多项用 `; ` 分隔）  
+5. 写入青龙环境变量 `QUARK_account`，例如：
+
+```text
+__puus=xxx; __pus=yyy; __kps=zzz; __ktd=aaa; __uid=bbb
+```
+
+也可在 Network 里随便点开一个 `pan.quark.cn` / `drive-m.quark.cn` 请求，从 Request Headers 的 `Cookie` 整段复制。
+
+多账号用换行或 `&&` 分隔。不要填 Python 字典，要填上面这种 Cookie 字符串。
 
 #### 订阅管理
 

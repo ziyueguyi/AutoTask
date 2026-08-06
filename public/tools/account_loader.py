@@ -19,6 +19,8 @@ def split_multi_account(raw: str) -> list[str]:
     raw = (raw or "").strip()
     if not raw:
         return []
+    if "&&" in raw:
+        return [p.strip() for p in raw.split("&&") if p.strip()]
     if "&" in raw:
         return [p.strip() for p in raw.split("&") if p.strip()]
     if "\n" in raw:
