@@ -1,0 +1,14 @@
+web/0008——美团天天神券/美团天天神券.py
+  h_756b7de6229b75 1-438
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "eea525b7538bc1ef0ffaebb143697319ed3f80c3",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
