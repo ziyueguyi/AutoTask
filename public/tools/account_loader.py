@@ -21,10 +21,12 @@ def split_multi_account(raw: str) -> list[str]:
         return []
     if "&&" in raw:
         return [p.strip() for p in raw.split("&&") if p.strip()]
-    if "&" in raw:
-        return [p.strip() for p in raw.split("&") if p.strip()]
     if "\n" in raw:
         return [p.strip() for p in raw.splitlines() if p.strip()]
+    # Cookie 串里常有 utm 的 &，勿按单个 & 拆账号；多账号请用 && 或换行
+    cookie_like = ";" in raw and "=" in raw and not raw.startswith("{")
+    if "&" in raw and not cookie_like:
+        return [p.strip() for p in raw.split("&") if p.strip()]
     return [raw]
 
 

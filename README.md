@@ -31,6 +31,7 @@
 | [天翼网盘](https://juejin.cn/)               | ✅     | ❌   | ❌   | ✅       | 每日签到抽奖得空间容量                 |
 | [百度网盘](https://pan.baidu.com/disk/main/) | ✅     | ❌   | ❌   | ✅       | 每日签到                             |
 | [麦当劳](https://open.mcd.cn/mcp/doc)         | ❌     | ❌   | ✅   | ✅       | 查询并一键领取优惠券；Token：[申请文档](https://open.mcd.cn/mcp/doc) |
+| [美团天天神券](https://h5.waimai.meituan.com/) | ❌     | ❌   | ✅   | ✅       | 签到领豆、兑必中符、抢红包；Token 从 H5 Cookie 获取 |
 ### 青龙
 
 #### 依赖管理
@@ -72,6 +73,13 @@ self.import_set = self.import_set.ImportSet("BD")
 | `QUARK_account` | 夸克网盘 Cookie 字符串，多账号用换行 / `&` / `&&` 分隔 |
 | `QUARK_notify` | 夸克网盘通知开关，填 `1` 开启 |
 | `QUARK_switch_delay` | 夸克网盘随机延迟开关，填 `1` 开启 |
+| `MT_account` | 美团天天神券 token / 整段 Cookie / JSON；多账号用 `&&` 或换行（Cookie 内含 `&` 勿用单 `&` 分隔） |
+| `MT_mtgsig` | 可选。openh5 查券包 403 时填抓包的 `mtgsig` JSON |
+| `MT_notify` | 美团通知开关，填 `1` 开启 |
+| `MT_latitude` / `MT_longitude` | 默认经纬度（去小数点），账号 JSON 可覆盖 |
+| `MT_propId` | 兑换必中符类型，默认 `5` |
+| `MT_exchangeCoinNumber` / `MT_setexchangedou` | 兑换豆数 / 攒够才兑，默认 `1800` |
+| `MT_grab_big` | 填 `1` 开启大额红包监测 |
 
 通知渠道（`PUSH_KEY`、`DD_BOT_TOKEN`、`TG_BOT_TOKEN` 等）仍在青龙面板单独配置。
 
@@ -104,6 +112,28 @@ __puus=xxx; __pus=yyy; __kps=zzz; __ktd=aaa; __uid=bbb
 也可在 Network 里随便点开一个 `pan.quark.cn` / `drive-m.quark.cn` 请求，从 Request Headers 的 `Cookie` 整段复制。
 
 多账号用换行或 `&&` 分隔。不要填 Python 字典，要填上面这种 Cookie 字符串。
+
+##### 美团天天神券 Token 获取方法（H5）
+
+主站 `www.meituan.com` 经常无法登录，请用外卖 H5：
+
+1. 浏览器打开 [美团外卖 H5](https://h5.waimai.meituan.com/) 并登录（可用手机模式 / 模拟移动 UA）
+2. 按 `F12` → **Network** → 刷新页面
+3. 点开任意 `i.waimai.meituan.com` 请求（如 `openh5/account/center`）
+4. 在 Request Headers 的 `Cookie` 中找到 `token=...;`，**只复制 token 值**（不要带 `token=` 和分号）
+5. 写入青龙环境变量 `MT_account`
+
+也可直接把整段 Cookie 贴进 `MT_account`，脚本会自动解析其中的 `token`；查外卖券包建议贴整段 Cookie，若返回 403 再另设 `MT_mtgsig`。
+
+任务结束推送会包含神券红包 / 券包的 **标题、效期、满减**。
+
+单账号 JSON 示例（可带经纬度）：
+
+```text
+{"token":"AgHAxxxx","wm_latitude":"30657401","wm_longitude":"104065827"}
+```
+
+经纬度去掉小数点；默认可用成都样例 `30657401` / `104065827`。建议 cron 对准神券场次，例如 `5 11,17,21 * * *`。
 
 #### 订阅管理
 

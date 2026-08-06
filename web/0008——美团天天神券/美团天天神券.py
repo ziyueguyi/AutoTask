@@ -6,19 +6,21 @@
 # Token 获取（推荐 H5，主站常登不上）：
 #   1. 手机模式打开 https://h5.waimai.meituan.com/ 并登录
 #   2. F12 → Network → 刷新，点开任意 i.waimai.meituan.com 请求
-#   3. 从 Cookie 复制 token= 后面的值（不要整段 Cookie 也行，脚本也能从 Cookie 串里解析 token）
+#   3. 从 Cookie 复制 token= 后面的值；查券包建议贴整段 Cookie（含 openh5_uuid）
 # 青龙环境变量（前缀 MT）：
-#   MT_account            必填。纯 token / 含 token= 的 Cookie 串 / {"token":"xxx","wm_latitude":"30657401","wm_longitude":"104065827"}
-#   MT_latitude           默认纬度（去小数点），如成都 30657401；账号 JSON 可覆盖
-#   MT_longitude          默认经度（去小数点），如成都 104065827
+#   MT_account            必填。纯 token / 含 token= 的 Cookie 串 / JSON
+#   MT_latitude           默认纬度（去小数点），默认杭州 30187293；账号可覆盖
+#   MT_longitude          默认经度（去小数点），默认杭州 120200469
 #   MT_propId             兑换必中符类型，默认 5（15 元）；常见 2/3/4/5
 #   MT_exchangeCoinNumber 兑换所需豆数，默认 1800
 #   MT_setexchangedou     豆攒够多少才兑换，默认 1800
 #   MT_grab_big           填 1 开启大额监测（有 10/15 元必中符时），默认关闭
+#   MT_mtgsig             可选。openh5 查券包若 403，可临时填抓包的 mtgsig JSON
 #   MT_notify             通知开关，填 1 开启
 const $ = new Env('美团天天神券')
 cron: 5 11,17,21 * * *
 """
+import json
 import os
 import random
 import time
@@ -43,12 +45,13 @@ class MeituanShenquan:
         self.import_set = import_set_module.ImportSet("MT")
         self.initialize = self.import_set.import_initialize()
         self.env_name = self.initialize.env_key("account")
-        self.default_lat = os.getenv(self.initialize.env_key("latitude"), "30657401").strip()
-        self.default_lng = os.getenv(self.initialize.env_key("longitude"), "104065827").strip()
+        self.default_lat = os.getenv(self.initialize.env_key("latitude"), "30187293").strip()
+        self.default_lng = os.getenv(self.initialize.env_key("longitude"), "120200469").strip()
         self.default_prop_id = int(os.getenv(self.initialize.env_key("propId"), "5") or "5")
         self.exchange_coin = int(os.getenv(self.initialize.env_key("exchangeCoinNumber"), "1800") or "1800")
         self.set_exchange_dou = int(os.getenv(self.initialize.env_key("setexchangedou"), "1800") or "1800")
         self.grab_big = os.getenv(self.initialize.env_key("grab_big"), "").strip() == "1"
+        self.mtgsig = os.getenv(self.initialize.env_key("mtgsig"), "").strip()
         self.session = requests.Session(timeout=15)
         self.session.headers.update({
             "Host": "i.waimai.meituan.com",
@@ -56,6 +59,7 @@ class MeituanShenquan:
             "x-requested-with": "XMLHttpRequest",
             "content-type": "application/x-www-form-urlencoded",
         })
+        self.h5_session = requests.Session(timeout=20)
 
     def emit(self, text: str, ok: bool = True) -> None:
         if ok:
@@ -63,15 +67,73 @@ class MeituanShenquan:
         else:
             self.initialize.error_message(text, is_flag=True)
 
+    def safe_call(self, label: str, fn, *args, default=None, **kwargs):
+        """执行一步；异常只记日志，不中断整体流程。"""
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            self.emit(f"{label}异常（已跳过）：{exc}", ok=False)
+            return default
+
     def post(self, path: str, data: dict) -> dict:
-        response = self.session.post(f"{self.BASE}{path}", data=urlencode(data))
+        try:
+            response = self.session.post(f"{self.BASE}{path}", data=urlencode(data))
+        except Exception as exc:
+            return {"code": -1, "msg": f"请求异常：{exc}"}
         try:
             return response.json()
         except Exception:
             return {"code": -1, "msg": f"HTTP {response.status_code} {response.text[:200]}"}
 
     @staticmethod
-    def resolve_account(account: dict) -> tuple[str, str, str]:
+    def pick(item: dict, *keys: str, default: str = "") -> str:
+        for key in keys:
+            value = item.get(key)
+            if value is None or value == "":
+                continue
+            return str(value)
+        return default
+
+    @staticmethod
+    def fen_to_yuan(value) -> str:
+        if value is None or value == "":
+            return ""
+        try:
+            num = float(value)
+        except (TypeError, ValueError):
+            return str(value)
+        # 常见：金额以「分」存储；也兼容已是元的小数
+        if abs(num) >= 100 and float(num).is_integer():
+            num = num / 100
+        if float(num).is_integer():
+            return str(int(num))
+        return f"{num:.2f}".rstrip("0").rstrip(".")
+
+    @staticmethod
+    def format_ts(value) -> str:
+        if value is None or value == "":
+            return ""
+        text = str(value)
+        if not text.isdigit():
+            return text
+        ts = int(text)
+        if ts > 10_000_000_000:
+            ts = ts / 1000
+        try:
+            return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+        except (OverflowError, OSError, ValueError):
+            return text
+
+    @staticmethod
+    def cookie_header(account: dict) -> str:
+        if account.get("cookie"):
+            return str(account["cookie"])
+        skip = {"wm_latitude", "wm_longitude", "latitude", "longitude", "mtgsig"}
+        parts = [f"{k}={v}" for k, v in account.items() if k not in skip and v is not None and v != ""]
+        return "; ".join(parts)
+
+    @staticmethod
+    def resolve_account(account: dict) -> tuple[str, str, str, str]:
         token = (
             account.get("token")
             or account.get("mt_c_token")
@@ -81,8 +143,80 @@ class MeituanShenquan:
         )
         lat = str(account.get("wm_latitude") or account.get("latitude") or "")
         lng = str(account.get("wm_longitude") or account.get("longitude") or "")
-        return str(token).strip(), lat.strip(), lng.strip()
+        uuid = str(
+            account.get("openh5_uuid")
+            or account.get("uuid")
+            or account.get("iuuid")
+            or ""
+        )
+        return str(token).strip(), lat.strip(), lng.strip(), uuid.strip()
 
+    def format_coupon_line(self, item: dict, index: int) -> str:
+        title = self.pick(item, "coupon_name", "couponName", "title", "coupon_title", "name", "displayName", "couponTitle")
+        start = self.format_ts(self.pick(item, "stime", "startTime", "use_start_time", "beginTime", "ctime"))
+        end = self.format_ts(
+            self.pick(item, "etime", "endTime", "use_end_time", "useEndTime", "end_time", "deadline", "expire_time", "validEndTime")
+        )
+        valid_desc = self.pick(item, "valid_time_desc", "validTimeDesc", "endTimeDesc", "use_time_desc", "couponValidTimeDoc")
+        if valid_desc:
+            period = valid_desc
+        elif start and end:
+            period = f"{start} ~ {end}"
+        elif end:
+            period = f"至 {end}"
+        else:
+            left = item.get("leftTime")
+            if left not in (None, ""):
+                try:
+                    period = f"剩余 {round(float(left) / 60000, 1)} 分钟"
+                except (TypeError, ValueError):
+                    period = str(left)
+            else:
+                period = "未知"
+
+        limit_text = self.pick(
+            item,
+            "priceLimitdesc",
+            "price_limit_desc",
+            "use_condition",
+            "coupon_condition_text",
+            "conditionText",
+            "orderLimitDoc",
+        )
+        if not limit_text:
+            limit = self.fen_to_yuan(
+                self.pick(item, "order_amount_limit", "orderAmountLimit", "price_limit", "limitPrice", "sillAmount")
+            )
+            amount = self.fen_to_yuan(
+                self.pick(
+                    item,
+                    "coupon_amount",
+                    "couponAmount",
+                    "money",
+                    "amount",
+                    "reduceAmount",
+                    "showPriceNumberYuan",
+                    "showTitle",
+                )
+            )
+            # showPriceNumber 常见为分
+            if not amount:
+                amount = self.fen_to_yuan(item.get("showPriceNumber"))
+            if limit and amount:
+                limit_text = f"满{limit}减{amount}"
+            elif amount:
+                limit_text = f"减{amount}元"
+            elif limit:
+                limit_text = f"满{limit}可用"
+            else:
+                limit_text = "未知"
+
+        return (
+            f"【优惠券#{index}】\n"
+            f"  标题：{title or '未知'}\n"
+            f"  效期：{period}\n"
+            f"  满减：{limit_text}"
+        )
     def sign_for_beans(self, token: str) -> None:
         data = self.post("/cfeplay/playcenter/batchgrabred/drawPoints/v2", {"token": token})
         code = data.get("code")
@@ -295,27 +429,175 @@ class MeituanShenquan:
             self.emit(f"入库：{data.get('msg') or data}", ok=False)
 
     def query_rewards(self, token: str) -> None:
-        data = self.post(
-            "/cfeplay/playcenter/batchgrabred/myreward",
-            {"parActivityId": self.PAR_ACTIVITY_ID, "token": token},
-        )
-        if data.get("code") != 0:
-            self.emit(f"查询红包库失败：{data.get('msg') or data}", ok=False)
-            return
-        items = ((data.get("data") or {}).get("myawardInfos") or [])
-        if not items:
-            self.emit("红包库为空")
-            return
-        valid = 0
-        for index, item in enumerate(items):
-            if not item.get("status"):
-                valid += 1
-                left_min = round(float(item.get("leftTime") or 0) / 60000, 1)
+        """神券红包库：推送标题 / 效期 / 满减。异常不影响主流程。"""
+        try:
+            data = self.post(
+                "/cfeplay/playcenter/batchgrabred/myreward",
+                {"parActivityId": self.PAR_ACTIVITY_ID, "token": token},
+            )
+            if data.get("code") != 0:
+                self.emit(f"查询红包库失败：{data.get('msg') or data}", ok=False)
+                return
+            items = ((data.get("data") or {}).get("myawardInfos") or [])
+            if not items:
+                self.emit("红包库为空")
+                return
+            valid = 0
+            for index, item in enumerate(items, 1):
+                try:
+                    if item.get("status") not in (None, 0, "0", False):
+                        continue
+                    valid += 1
+                    row = {
+                        "name": item.get("name") or item.get("showTitle"),
+                        "showPriceNumberYuan": item.get("showPriceNumberYuan"),
+                        "showPriceNumber": item.get("showPriceNumber"),
+                        "priceLimitdesc": item.get("priceLimitdesc"),
+                        "leftTime": item.get("leftTime"),
+                        "endTimeDesc": item.get("endTimeDesc"),
+                        "etime": item.get("endTime") or item.get("etime"),
+                    }
+                    amount = self.fen_to_yuan(row.get("showPriceNumberYuan") or row.get("showPriceNumber"))
+                    if amount and not row.get("priceLimitdesc"):
+                        row["priceLimitdesc"] = f"减{amount}元"
+                    elif amount and "减" not in str(row.get("priceLimitdesc") or ""):
+                        row["priceLimitdesc"] = f"{row['priceLimitdesc']}，面值{amount}元"
+                    self.emit(self.format_coupon_line(row, index).replace("【优惠券#", "【神券红包#"))
+                except Exception as exc:
+                    self.emit(f"解析红包#{index}失败（已跳过）：{exc}", ok=False)
+            self.emit(f"红包库共 {len(items)} 个，有效 {valid} 个")
+        except Exception as exc:
+            self.emit(f"查询红包库异常（已跳过）：{exc}", ok=False)
+
+    def extract_coupon_list(self, payload) -> list:
+        if not isinstance(payload, dict):
+            return []
+        data = payload.get("data")
+        if isinstance(data, list):
+            return data
+        if not isinstance(data, dict):
+            return []
+        for key in (
+            "couponList",
+            "coupon_list",
+            "userCouponList",
+            "list",
+            "coupons",
+            "couponInfos",
+            "module_list",
+            "couponInfoList",
+        ):
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                for nested in ("list", "couponList", "items"):
+                    if isinstance(value.get(nested), list):
+                        return value[nested]
+        # 部分接口嵌套在 module_list[].string_data
+        modules = data.get("module_list") or data.get("moduleList") or []
+        if isinstance(modules, list):
+            found = []
+            for module in modules:
+                if not isinstance(module, dict):
+                    continue
+                string_data = module.get("string_data") or module.get("stringData")
+                if isinstance(string_data, str):
+                    try:
+                        string_data = json.loads(string_data)
+                    except json.JSONDecodeError:
+                        string_data = None
+                if isinstance(string_data, dict):
+                    for key in ("couponList", "list", "coupons"):
+                        if isinstance(string_data.get(key), list):
+                            found.extend(string_data[key])
+                elif isinstance(string_data, list):
+                    found.extend(string_data)
+            if found:
+                return found
+        return []
+
+    def query_coupon_wallet(self, account: dict, token: str, lat: str, lng: str, uuid: str) -> None:
+        """openh5 券包列表：标题 / 效期 / 满减。异常不影响主流程。"""
+        try:
+            cookie = self.cookie_header(account)
+            if "token=" not in cookie and token:
+                cookie = f"token={token}; {cookie}".strip("; ")
+            uuid = uuid or account.get("openh5_uuid") or account.get("uuid") or ""
+            mtgsig = (account.get("mtgsig") or self.mtgsig or "").strip()
+            ts = int(time.time() * 1000)
+            url = (
+                f"{self.BASE}/openh5/coupon/list"
+                f"?_={ts}&yodaReady=h5&csecplatform=4&csecversion=4.3.0"
+            )
+            body = {
+                "optimus_code": "10",
+                "optimus_risk_level": "71",
+                "status": "1",
+                "page_size": "20",
+                "page_index": "0",
+                "extend_flag_map": json.dumps({"needMergeBuyPremiumSq": True}, separators=(",", ":")),
+                "wm_latitude": lat,
+                "wm_longitude": lng,
+                "wm_actual_latitude": lat,
+                "wm_actual_longitude": lng,
+                "wmUuidDeregistration": "0",
+                "wmUserIdDeregistration": "0",
+                "openh5_uuid": uuid,
+                "uuid": uuid,
+            }
+            headers = {
+                "Accept": "application/json",
+                "Accept-Language": "zh,zh-CN;q=0.9",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": "https://h5.waimai.meituan.com",
+                "Referer": "https://h5.waimai.meituan.com/",
+                "User-Agent": (
+                    "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36"
+                ),
+                "Cookie": cookie,
+            }
+            if mtgsig:
+                headers["mtgsig"] = mtgsig
+            response = self.h5_session.post(
+                url,
+                data=urlencode(body),
+                headers=headers,
+                impersonate="chrome131",
+            )
+            if response.status_code == 403:
                 self.emit(
-                    f"红包#{index + 1}：{item.get('name')} "
-                    f"{item.get('showPriceNumberYuan')} 元，剩余 {left_min} 分钟"
+                    "查询券包：HTTP 403（openh5 需有效 mtgsig），已跳过。"
+                    "可设 MT_mtgsig=抓包值。",
+                    ok=False,
                 )
-        self.emit(f"红包库共 {len(items)} 个，有效 {valid} 个")
+                return
+            try:
+                payload = response.json()
+            except Exception:
+                self.emit(
+                    f"查询券包失败（已跳过）：HTTP {response.status_code} {response.text[:160]}",
+                    ok=False,
+                )
+                return
+            if "code" in payload and payload.get("code") not in (0, "0"):
+                self.emit(f"查询券包失败（已跳过）：{payload.get('msg') or payload}", ok=False)
+                return
+            items = self.extract_coupon_list(payload)
+            if not items:
+                self.emit(f"券包为空或结构未识别（已跳过）：{str(payload)[:200]}")
+                return
+            self.emit(f"券包共 {len(items)} 张（可用）")
+            for index, item in enumerate(items, 1):
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    self.emit(self.format_coupon_line(item, index))
+                except Exception as exc:
+                    self.emit(f"解析优惠券#{index}失败（已跳过）：{exc}", ok=False)
+        except Exception as exc:
+            self.emit(f"查询券包异常（已跳过）：{exc}", ok=False)
 
     def send_task_bean(self, token: str, lat: str, lng: str) -> None:
         data = self.post(
@@ -382,7 +664,7 @@ class MeituanShenquan:
             time.sleep(2 + random.random())
 
     def run_account(self, account_name: str, account: dict) -> None:
-        token, lat, lng = self.resolve_account(account)
+        token, lat, lng, uuid = self.resolve_account(account)
         lat = lat or self.default_lat
         lng = lng or self.default_lng
         if not token:
@@ -406,10 +688,11 @@ class MeituanShenquan:
             self.maybe_wait_big(token, lat, lng, use_prop)
             price = self.draw_lottery(token, lat, lng, batch_id, use_prop)
             self.accept_or_to_bean(token, lat, lng, batch_id, price)
-        self.query_rewards(token)
-        self.send_task_bean(token, lat, lng)
-        self.query_beans(token, lat, lng)
-        self.query_props(token, lat, lng)
+        self.safe_call("查询红包库", self.query_rewards, token)
+        self.safe_call("查询券包", self.query_coupon_wallet, account, token, lat, lng, uuid)
+        self.safe_call("浏览任务领豆", self.send_task_bean, token, lat, lng)
+        self.safe_call("查询红包豆", self.query_beans, token, lat, lng)
+        self.safe_call("查询道具库", self.query_props, token, lat, lng)
 
     def run(self) -> None:
         self.initialize.info_message("美团天天神券开始")
