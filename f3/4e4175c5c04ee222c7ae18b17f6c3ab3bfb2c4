@@ -1,0 +1,14 @@
+public/tools/account_loader.py
+  h_756b7de6229b75 6,10-11,14,34-52,57-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "f34e4175c5c04ee222c7ae18b17f6c3ab3bfb2c4",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
