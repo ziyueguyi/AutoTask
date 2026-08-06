@@ -3,14 +3,15 @@
 青龙面板多账号 Cookie / Token 加载（仅环境变量）。
 
 环境变量多账号分隔（与夸克/JD 类似）：
-  - & 连接多个账号
+  - && 连接多个账号
   - 或换行（青龙环境变量里一行一个账号）
 
 单账号支持三种格式：
-  1. JSON：{"BDUSS":"xxx","STOKEN":"yyy"} 或 {"token":"xxx"}
-  2. 键值串：BDUSS=xxx;STOKEN=yyy 或 token=xxx
+  1. JSON / Python 字典：{"COOKIE_LOGIN_USER":"xxx"} 或 {'COOKIE_LOGIN_USER':'xxx'}
+  2. 键值串：COOKIE_LOGIN_USER=xxx; JSESSIONID=yyy
   3. 纯字符串（秘钥/Token）：直接填 xxx，解析为 {"token":"xxx"}
 """
+import ast
 import json
 import os
 
@@ -30,15 +31,31 @@ def split_multi_account(raw: str) -> list[str]:
     return [raw]
 
 
+def parse_object_item(item: str) -> dict:
+    """解析 JSON 对象，兼容青龙里误填的 Python 单引号字典。"""
+    try:
+        data = json.loads(item)
+    except json.JSONDecodeError:
+        try:
+            data = ast.literal_eval(item)
+        except (SyntaxError, ValueError) as exc:
+            raise ValueError(
+                "对象格式无效：请用标准 JSON 双引号，"
+                '如 {"COOKIE_LOGIN_USER":"xxx"}，'
+                "或直接填 Cookie 串 COOKIE_LOGIN_USER=xxx; ..."
+            ) from exc
+    if not isinstance(data, dict):
+        raise ValueError("账号对象必须是字典/JSON 对象")
+    # 统一成 str 键值，便于后续拼 Cookie
+    return {str(k): ("" if v is None else str(v)) for k, v in data.items()}
+
+
 def parse_cookie_item(item: str) -> dict:
     item = item.strip()
     if not item:
         raise ValueError("Cookie 为空")
-    if item.startswith("{"):
-        data = json.loads(item)
-        if not isinstance(data, dict):
-            raise ValueError("JSON Cookie 必须是对象")
-        return data
+    if item.startswith("{") or item.startswith("["):
+        return parse_object_item(item)
     cookies = {}
     for part in item.split(";"):
         part = part.strip()
