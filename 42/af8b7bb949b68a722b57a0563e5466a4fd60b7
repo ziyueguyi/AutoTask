@@ -1,0 +1,14 @@
+web/0005——稀土掘金/稀土掘金.py
+  h_756b7de6229b75 226-238,245-258,300,309,313-321,333-337
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "42af8b7bb949b68a722b57a0563e5466a4fd60b7",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
