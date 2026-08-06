@@ -223,16 +223,39 @@ class JuejinHelper:
             return 0
 
     def get_lottery_config(self) -> dict:
-        data = self.request_data("GET", "/growth_api/v1/lottery_config/get", signed=True)
-        return data if isinstance(data, dict) else {}
+        # a_bogus 常与 URL 绑定：draw 的签名不一定能用于 config
+        last_exc = None
+        for signed in (False, True):
+            try:
+                data = self.request_data(
+                    "GET",
+                    "/growth_api/v1/lottery_config/get",
+                    signed=signed,
+                )
+                return data if isinstance(data, dict) else {}
+            except Exception as exc:
+                last_exc = exc
+        raise last_exc or RuntimeError("抽奖配置获取失败")
 
     def draw_lottery(self) -> dict:
         data = self.request_data("POST", "/growth_api/v1/lottery/draw", body={}, signed=True)
         return data if isinstance(data, dict) else {}
 
     def get_my_lucky(self) -> dict:
-        data = self.request_data("POST", "/growth_api/v1/lottery_lucky/my_lucky", body={}, signed=True)
-        return data if isinstance(data, dict) else {}
+        # 幸运值查询优先无签名，失败再带签名
+        last_exc = None
+        for signed in (False, True):
+            try:
+                data = self.request_data(
+                    "POST",
+                    "/growth_api/v1/lottery_lucky/my_lucky",
+                    body={},
+                    signed=signed,
+                )
+                return data if isinstance(data, dict) else {}
+            except Exception as exc:
+                last_exc = exc
+        raise last_exc or RuntimeError("幸运值查询失败")
 
     def run_growth(self) -> dict:
         """签到 + 统计（对齐 GrowthTask）。"""
@@ -274,7 +297,7 @@ class JuejinHelper:
         return result
 
     def run_lottery(self) -> dict:
-        """免费抽奖（对齐 LotteriesTask，只抽 free_count）。"""
+        """免费抽奖。配置接口失败时，有签名则直接尝试 draw（签到后通常有 1 次免费）。"""
         empty = {
             "free_count": 0,
             "lottery_count": 0,
@@ -283,11 +306,19 @@ class JuejinHelper:
             "lucky_value": 0,
             "point_cost": 200,
         }
+        config = {}
         try:
             config = self.get_lottery_config()
         except Exception as exc:
-            self.emit(f"抽奖配置获取失败：{exc}", ok=False)
-            return empty
+            self.emit(
+                f"抽奖配置获取失败（a_bogus 常与 URL 绑定，draw 签名未必能查配置）：{exc}",
+                ok=False,
+            )
+            if not self.extra_params.get("a_bogus"):
+                return empty
+            self.emit("改为直接尝试免费抽奖…")
+            config = {"free_count": 1, "point_cost": 200, "lottery": []}
+
         lottery_pool = {str(item.get("lottery_id")): item for item in (config.get("lottery") or [])}
         free_count = int(config.get("free_count") or 0)
         point_cost = int(config.get("point_cost") or 0)
@@ -299,7 +330,11 @@ class JuejinHelper:
             try:
                 data = self.draw_lottery()
             except Exception as exc:
-                self.emit(f"抽奖失败：{exc}", ok=False)
+                msg = str(exc)
+                if "次数" in msg or "free" in msg.lower() or "15001" in msg:
+                    self.emit(f"抽奖跳过：{msg}")
+                else:
+                    self.emit(f"抽奖失败：{msg}", ok=False)
                 break
             lottery_id = str(data.get("lottery_id") or "")
             name = data.get("lottery_name") or (
