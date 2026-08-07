@@ -428,4 +428,4 @@ class TxJhExchange:
 
 
 if __name__ == "__main__":
-    TaoJiangHuExchange().run()
+    TxJhExchange().run()

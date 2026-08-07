@@ -8,7 +8,7 @@
 #   TX_SIGN_notify   通知开关，填 1 开启
 # 依赖：curl_cffi
 const $ = new Env('淘金币签到')
-cron: 1 1 1 1 1
+cron: 15 9,21 * * *
 """
 import hashlib
 import json
@@ -309,4 +309,4 @@ class TxSign:
 
 
 if __name__ == "__main__":
-    TaoJinBiSign().run()
+    TxSign().run()

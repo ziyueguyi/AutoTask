@@ -327,4 +327,4 @@ class TxJhTask:
 
 
 if __name__ == "__main__":
-    TaoJiangHuTask().run()
+    TxJhTask().run()

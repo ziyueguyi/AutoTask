@@ -393,4 +393,4 @@ class TxExchange:
 
 
 if __name__ == "__main__":
-    TaoJinBiExchange().run()
+    TxExchange().run()
