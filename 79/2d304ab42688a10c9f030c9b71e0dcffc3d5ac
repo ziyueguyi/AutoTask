@@ -1,0 +1,21 @@
+web/0010——淘系/淘金币兑换.py
+  s_6b8fc962ff3e09::t_dca69a476fbd46 1-396
+web/0010——淘系/淘金币签到.py
+  s_6b8fc962ff3e09::t_f366aac092f2fd 1-312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "792d304ab42688a10c9f030c9b71e0dcffc3d5ac",
+  "prompts": {},
+  "sessions": {
+    "s_6b8fc962ff3e09": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c093885d-b318-45e7-b385-34b0d8235236",
+        "model": "auto-smart"
+      },
+      "human_author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
