@@ -1,0 +1,29 @@
+web/0010-tx/tx_exchange.py
+  s_6b8fc962ff3e09::t_d39622dc369aa3 6-9,41,51
+web/0010-tx/tx_jh_exchange.py
+  s_6b8fc962ff3e09::t_db31cf2517f80f 6-9,40,50
+web/0010-tx/tx_jh_task.py
+  s_6b8fc962ff3e09::t_8028f2b076fc35 6-8,38
+web/0010-tx/tx_login.py
+  s_6b8fc962ff3e09::t_ad0ad8cf5f810f 6,10,33
+web/0010-tx/tx_sign.py
+  s_6b8fc962ff3e09::t_915e4d33f7e817 6-8,40
+web/0010-tx/tx_task.py
+  s_6b8fc962ff3e09::t_bc0c79504fb6ff 6-8,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "9c455cf6dfc7346641c773478052b804d87348fd",
+  "prompts": {},
+  "sessions": {
+    "s_6b8fc962ff3e09": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c093885d-b318-45e7-b385-34b0d8235236",
+        "model": "auto-smart"
+      },
+      "human_author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
