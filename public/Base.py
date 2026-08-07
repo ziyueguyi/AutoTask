@@ -16,7 +16,7 @@ from curl_cffi import requests
 
 
 class Base:
-    def __init__(self, suffix='base') -> None:
+    def __init__(self, suffix='base', use_proxy: bool = True) -> None:
         tools_path = Path(__file__).resolve().parent
         import_set_spc = util.spec_from_file_location('ImportSet', str(tools_path / 'ImportSet.py'))
         import_set = util.module_from_spec(import_set_spc)
@@ -30,7 +30,8 @@ class Base:
             "Content-type": "application/json",
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
         })
-        self.import_set.apply_proxy(self.session, self.initialize)
+        if use_proxy:
+            self.import_set.apply_proxy(self.session, self.initialize)
 
     def run(self):
         self.initialize.info_message("签到开始")

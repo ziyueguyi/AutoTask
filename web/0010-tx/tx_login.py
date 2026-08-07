@@ -11,6 +11,8 @@
 #   TX_LOGIN_merge          填 1 时按账号 unb 合并多账号；默认覆盖整段 Cookie
 #   TX_LOGIN_notify         通知开关，填 1 开启
 #   TX_LOGIN_timeout        等待扫码超时秒数，默认 300
+#   TX_proxy / TX_LOGIN_proxy  仅获取 h5 cookie（_m_h5_tk）时使用；扫码登录直连
+#   TX_proxy_retry           h5 代理失败重试次数，默认 2
 # 依赖：curl_cffi、qrcode
 const $ = new Env('淘宝扫码登录')
 cron: 1 1 1 1 1
@@ -33,7 +35,8 @@ from public.Base import Base
 
 class TxLogin(Base):
     def __init__(self) -> None:
-        super().__init__(["TX", "TX_JH", "TX_LOGIN"])
+        # 扫码/轮询直连；代理仅在 refresh_m_h5_tk 打 h5api 时启用
+        super().__init__(["TX", "TX_JH", "TX_LOGIN"], use_proxy=False)
         self.session.headers.update({
             "accept": "application/json, text/plain, */*",
             "accept-language": "zh,zh-CN;q=0.9",
@@ -50,6 +53,11 @@ class TxLogin(Base):
         self.qr_path = Path(__file__).resolve().parent / "tx_login_qr.bmp"
         self.login_page_url = f"{self.LOGIN_HOST}/havanaone/login/login.htm?bizName=taobao&f=top&redirectURL={self.RETURN_URL}"
         self._csrf = ""
+        proxy_env = self.import_set.env_key("proxy")
+        if self.import_set.get_env("proxy"):
+            self.initialize.info_message(
+                f"扫码登录直连；仅获取 h5 cookie 时走代理（{proxy_env}）"
+            )
 
     # ---------- utils ----------
 
@@ -209,8 +217,64 @@ class TxLogin(Base):
             self.apply_cookies(got)
         return got
 
+    def _h5_proxy_retries(self) -> int:
+        helper = self.import_set.import_proxy()
+        default_retry = int(getattr(helper, "DEFAULT_RETRY", 2))
+        try:
+            return int(self.initialize.get_env("proxy_retry") or str(default_retry))
+        except ValueError:
+            return default_retry
+
+    def _get_via_h5_proxy(self, url: str, *, params=None, headers=None, allow_redirects=True):
+        """仅 h5api 请求走代理；失败按 proxy_retry 换新重试。"""
+        helper = self.import_set.import_proxy()
+        use_proxy = bool(helper.raw_value())
+        retries = self._h5_proxy_retries() if use_proxy else 0
+        last_exc: BaseException | None = None
+        proxy_logged = False
+
+        for attempt in range(retries + 1):
+            proxies = None
+            if use_proxy:
+                try:
+                    address = helper.get_proxy()
+                except Exception as exc:
+                    last_exc = exc
+                    if attempt >= retries:
+                        break
+                    continue
+                if address:
+                    proxies = {"http": address, "https": address}
+                    if not proxy_logged:
+                        self.initialize.info_message(
+                            f"获取 h5 cookie 使用代理 {address}"
+                            f"（{helper.config_name}；重试变量 "
+                            f"{self.initialize.env_key('proxy_retry')}，默认 "
+                            f"{getattr(helper, 'DEFAULT_RETRY', 2)}）"
+                        )
+                        proxy_logged = True
+                    elif attempt > 0:
+                        self.initialize.info_message(
+                            f"h5 代理失败，更换并重试 {attempt}/{retries}：{address}",
+                            is_flag=True,
+                        )
+            try:
+                return self.session.get(
+                    url,
+                    params=params,
+                    headers=headers,
+                    allow_redirects=allow_redirects,
+                    proxies=proxies,
+                )
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= retries or not use_proxy or not helper.is_api_source():
+                    break
+        assert last_exc is not None
+        raise last_exc
+
     def refresh_m_h5_tk(self, base: dict[str, str] | None = None) -> dict[str, str]:
-        """访问 h5api 触发下发 _m_h5_tk / _m_h5_tk_enc。"""
+        """访问 h5api 触发下发 _m_h5_tk / _m_h5_tk_enc（仅此步骤可用代理）。"""
         got: dict[str, str] = {}
         jar = dict(base or self.session_cookie_dict())
         cookie_header = self.cookies_to_str(jar)
@@ -262,10 +326,14 @@ class TxLogin(Base):
         ]
         for url, params in endpoints:
             try:
-                if params is None:
-                    resp = self.session.get(url, headers=headers, allow_redirects=True)
+                if "h5api.m.taobao.com" in url:
+                    resp = self._get_via_h5_proxy(
+                        url, params=params, headers=headers, allow_redirects=True
+                    )
                 else:
-                    resp = self.session.get(url, params=params, headers=headers, allow_redirects=True)
+                    resp = self.session.get(
+                        url, params=params, headers=headers, allow_redirects=True
+                    )
                 got.update(self.ingest_response_cookies(resp))
                 if got.get("_m_h5_tk"):
                     self.initialize.info_message(
