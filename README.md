@@ -88,22 +88,14 @@ self.import_set = self.import_set.ImportSet("BD")
 | `TY_notify` | 天翼网盘通知开关，填 `1` 开启 |
 | `JJ_account` | 稀土掘金网页 Cookie（含 `sessionid`）；多账号用 `&&` 或换行 |
 | `JJ_notify` | 稀土掘金通知开关，填 `1` 开启 |
-| `TX_SIGN_account` | 淘金币签到 Cookie（需含 `_m_h5_tk`、`cookie2`）；多账号用 `&&` 或换行 |
-| `TX_SIGN_notify` | 淘金币签到通知开关，填 `1` 开启 |
-| `TX_TASK_account` | 淘金币任务 Cookie |
-| `TX_TASK_notify` | 淘金币任务通知开关，填 `1` 开启 |
-| `TX_EXCHANGE_account` | 淘金币兑换 Cookie |
-| `TX_EXCHANGE_notify` | 淘金币兑换通知开关，填 `1` 开启 |
+| `TX_account` | 淘系共用 Cookie（需含 `_m_h5_tk`、`cookie2`）；多账号用 `&&` 或换行 |
+| `TX_notify` | 淘系通知开关，填 `1` 开启 |
 | `TX_EXCHANGE_range` | 金币换好礼范围（按 `reduceCoinAmount`）：`-1` / `100-1000` / `100-` / `-1000` |
-| `TX_JH_TASK_account` | 淘江湖任务 Cookie |
-| `TX_JH_TASK_notify` | 淘江湖任务通知开关，填 `1` 开启 |
-| `TX_JH_EXCHANGE_account` | 淘江湖兑换 Cookie |
-| `TX_JH_EXCHANGE_notify` | 淘江湖兑换通知开关，填 `1` 开启 |
 | `TX_JH_EXCHANGE_range` | 淘江湖兑换范围（按 `costCoin`）：`-1` / `100-1000` / `100-` / `-1000` |
 | `TX_LOGIN_client_id` | 青龙应用 Client ID（与 secret 同时配置才可自动上传 Cookie） |
 | `TX_LOGIN_client_secret` | 青龙应用 Client Secret |
 | `TX_LOGIN_ql_url` | 青龙地址，默认 `http://127.0.0.1:5700` |
-| `TX_LOGIN_target` | 写入的环境变量名，逗号分隔；默认同步全部淘系 `*_account` |
+| `TX_LOGIN_target` | 写入的环境变量名，默认 `TX_account` |
 | `TX_LOGIN_timeout` | 等待扫码超时秒数，默认 `300`（每 10s 查询一次） |
 | `TX_LOGIN_notify` | 淘宝扫码登录通知开关，填 `1` 开启 |
 
@@ -223,23 +215,23 @@ sessionid=xxx; sid_tt=xxx; sessionid_ss=xxx; ...
 
 运行 `web/0010-tx/tx_login.py`，在青龙日志中查看 ASCII 二维码，用淘宝 App 扫码确认。登录成功后：
 
-1. 已配置 `TX_LOGIN_client_id` + `TX_LOGIN_client_secret`：按 `TX_LOGIN_target` 写入/合并 Cookie（同账号按 `unb` 覆盖）
-2. 未配置秘钥：只把 Cookie 打印到日志，需手动粘贴到各 `*_account`
+1. 已配置 `TX_LOGIN_client_id` + `TX_LOGIN_client_secret`：写入/合并到 `TX_account`（同账号按 `unb` 覆盖；可用 `TX_LOGIN_target` 覆盖目标名）
+2. 未配置秘钥：只把 Cookie 打印到日志，需手动粘贴到 `TX_account`
 
 青龙应用权限：系统设置 → 应用设置 → 新建应用并勾选「环境变量」。把生成的 Client ID / Secret **再写入环境变量** `TX_LOGIN_client_id`、`TX_LOGIN_client_secret`（也可改用通用名 `QL_CLIENT_ID` / `QL_CLIENT_SECRET`）。只建应用不建环境变量时脚本读不到。建议 cron：`1 1 1 1 1`（手动运行）。
 
 ##### 淘金币 Cookie 获取方法
 
-脚本在目录 `web/0010-tx/`，各自单文件可运行，互不依赖；Cookie / 通知也分开配置（可复制同一段 Cookie 到多份变量，但变量名不同）：
+脚本在目录 `web/0010-tx/`，共用同一个 Cookie 变量 `TX_account`：
 
 | 脚本 | Cookie | 通知 | 建议 cron |
 |------|--------|------|-----------|
-| `tx_login.py` | 写入 `TX_LOGIN_target` | `TX_LOGIN_notify` | `1 1 1 1 1`（手动） |
-| `tx_sign.py` | `TX_SIGN_account` | `TX_SIGN_notify` | `0 9 * * * & 15 21 * * *` |
-| `tx_task.py` | `TX_TASK_account` | `TX_TASK_notify` | `0 9 * * * & 15 21 * * *` |
-| `tx_exchange.py` | `TX_EXCHANGE_account` | `TX_EXCHANGE_notify` | `1 1 1 1 1` |
-| `tx_jh_exchange.py` | `TX_JH_EXCHANGE_account` | `TX_JH_EXCHANGE_notify` | `1 1 1 1 1` |
-| `tx_jh_task.py` | `TX_JH_TASK_account` | `TX_JH_TASK_notify` | `1 1 1 1 1` |
+| `tx_login.py` | 写入 `TX_account` | `TX_LOGIN_notify` | `1 1 1 1 1`（手动） |
+| `tx_sign.py` | `TX_account` | `TX_notify` | `0 9 * * * & 15 21 * * *` |
+| `tx_task.py` | `TX_account` | `TX_notify` | `0 9 * * * & 15 21 * * *` |
+| `tx_exchange.py` | `TX_account` | `TX_notify` | `1 1 1 1 1` |
+| `tx_jh_exchange.py` | `TX_account` | `TX_notify` | `1 1 1 1 1` |
+| `tx_jh_task.py` | `TX_account` | `TX_notify` | `1 1 1 1 1` |
 
 `TX_EXCHANGE_range` / `TX_JH_EXCHANGE_range`（默认 `-1`）：
 
@@ -266,7 +258,7 @@ cookie2=xxx; _m_h5_tk=xxx_xxx; _m_h5_tk_enc=xxx; sgcookie=xxx; unb=xxx; ...
 1. 浏览器登录 [淘宝活动页 / 淘金币](https://huodong.taobao.com/)（打开金币小镇签到页）
 2. 按 `F12` → **Application** → **Cookies** → `https://taobao.com` / `huodong.taobao.com`
 3. 复制整段 Cookie
-4. 分别写入 `TX_SIGN_account` / `TX_TASK_account` / `TX_EXCHANGE_account`
+4. 写入青龙环境变量 `TX_account`
 
 若返回 `SESSION失效`，重新登录后再复制 Cookie。多账号用 `&&` 或换行。
 

@@ -3,9 +3,9 @@
 # @项目名称 :AutoTask
 # @文件名称 :tx_sign.py
 # @文件介绍 :淘宝淘金币签到（查询 → 未签则领取 → 小镇首页）
-# 青龙环境变量（前缀 TX_SIGN）：
-#   TX_SIGN_account  Cookie
-#   TX_SIGN_notify   通知开关，填 1 开启
+# 青龙环境变量（前缀 TX）：
+#   TX_account  Cookie（淘系共用）
+#   TX_notify   通知开关，填 1 开启
 # 依赖：curl_cffi
 const $ = new Env('淘金币签到')
 cron: 15 9,21 * * *
@@ -37,7 +37,7 @@ class TxSign:
         import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
         import_set_module = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TX_SIGN")
+        self.import_set = import_set_module.ImportSet("TX")
         self.initialize = self.import_set.import_initialize()
         self.env_name = self.initialize.env_key("account")
         self.session = requests.Session(timeout=20)

@@ -3,9 +3,9 @@
 # @项目名称 :AutoTask
 # @文件名称 :tx_jh_task.py
 # @文件介绍 :淘江湖任务（sceneId=8244）
-# 青龙环境变量（前缀 TX_JH_TASK）：
-#   TX_JH_TASK_account  Cookie
-#   TX_JH_TASK_notify   通知开关，填 1 开启
+# 青龙环境变量（前缀 TX）：
+#   TX_account  Cookie（淘系共用）
+#   TX_notify   通知开关，填 1 开启
 # 依赖：curl_cffi
 const $ = new Env('淘江湖任务')
 cron: 1 1 1 1 1
@@ -35,7 +35,7 @@ class TxJhTask:
         import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
         import_set_module = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TX_JH_TASK")
+        self.import_set = import_set_module.ImportSet("TX")
         self.initialize = self.import_set.import_initialize()
         self.env_name = self.initialize.env_key("account")
         self.session = requests.Session(timeout=20)

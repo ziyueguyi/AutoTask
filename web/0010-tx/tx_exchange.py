@@ -3,10 +3,10 @@
 # @项目名称 :AutoTask
 # @文件名称 :tx_exchange.py
 # @文件介绍 :淘宝金币换好礼查询（余额校验；兑换动作待抓包）
-# 青龙环境变量（前缀 TX_EXCHANGE）：
-#   TX_EXCHANGE_account  Cookie
-#   TX_EXCHANGE_notify   通知开关，填 1 开启
-#   TX_EXCHANGE_range    兑换范围（按 reduceCoinAmount），默认 -1
+# 青龙环境变量（前缀 TX）：
+#   TX_account         Cookie（淘系共用）
+#   TX_notify          通知开关，填 1 开启
+#   TX_EXCHANGE_range  兑换范围（按 reduceCoinAmount），默认 -1
 #                        -1 / 100-1000 / 100- / -1000
 # 依赖：curl_cffi
 const $ = new Env('淘金币兑换')
@@ -38,7 +38,7 @@ class TxExchange:
         import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
         import_set_module = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TX_EXCHANGE")
+        self.import_set = import_set_module.ImportSet("TX")
         self.initialize = self.import_set.import_initialize()
         query_spc = util.spec_from_file_location(
             "query_taocoin",
@@ -48,7 +48,7 @@ class TxExchange:
         query_spc.loader.exec_module(self.query_taocoin)
         self.env_name = self.initialize.env_key("account")
         self.coin_range = self.parse_coin_range(
-            (os.getenv(self.initialize.env_key("range")) or "-1").strip()
+            (os.getenv("TX_EXCHANGE_range") or "-1").strip()
         )
         self.session = requests.Session(timeout=20)
         proxy = (os.getenv(self.initialize.env_key("proxy")) or "").strip()

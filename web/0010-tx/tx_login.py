@@ -3,11 +3,11 @@
 # @项目名称 :AutoTask
 # @文件名称 :tx_login.py
 # @文件介绍 :淘宝 PC 扫码登录，日志打印二维码，确认后回写青龙 Cookie
-# 青龙环境变量（前缀 TX_LOGIN）：
+# 青龙环境变量（前缀 TX_LOGIN / TX）：
 #   TX_LOGIN_client_id      青龙应用 Client ID（与 secret 同时配置才可上传）
 #   TX_LOGIN_client_secret  青龙应用 Client Secret
 #   TX_LOGIN_ql_url         青龙地址，默认 http://127.0.0.1:5700
-#   TX_LOGIN_target         写入的环境变量名，逗号分隔；默认同步全部淘系 *_account
+#   TX_LOGIN_target         写入的环境变量名，默认 TX_account
 #   TX_LOGIN_notify         通知开关，填 1 开启
 #   TX_LOGIN_timeout        等待扫码超时秒数，默认 300
 # 依赖：curl_cffi、qrcode
@@ -30,10 +30,7 @@ from urllib.parse import unquote
 from curl_cffi import requests
 
 
-DEFAULT_TARGETS = (
-    "TX_SIGN_account,TX_TASK_account,TX_EXCHANGE_account,"
-    "TX_JH_TASK_account,TX_JH_EXCHANGE_account"
-)
+DEFAULT_TARGETS = "TX_account"
 IMPORTANT_COOKIE_KEYS = (
     "cookie2",
     "_tb_token_",
