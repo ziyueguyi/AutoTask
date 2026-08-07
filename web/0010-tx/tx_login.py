@@ -343,7 +343,13 @@ class TxLogin:
             self.initialize.info_message(
                 f"[{round_no}] 扫码状态: {status}（{msg}），剩余约 {remain}s"
             )
-            if status == "CONFIRMED" and data.get("loginResult") == "success":
+            if status == "CONFIRMED":
+                # 手机已确认即视为成功；勿再轮询，否则下一轮常变成 EXPIRED
+                login_result = data.get("loginResult") or "success"
+                self.initialize.info_message(
+                    f"扫码确认成功（loginResult={login_result}）",
+                    is_flag=True,
+                )
                 return data
             if status == "EXPIRED":
                 raise TimeoutError(f"二维码超时（EXPIRED）：{msg}")
@@ -523,7 +529,7 @@ class TxLogin:
     # ---------- entry ----------
 
     def run(self) -> None:
-        self.initialize.info_message("TX Login start")
+        self.initialize.info_message("淘宝扫码登录开始")
         try:
             self.open_login_page()
             qr = self.generate_qr()
@@ -539,8 +545,8 @@ class TxLogin:
             raise
         finally:
             self.cleanup_qr_image()
-            self.initialize.info_message("TX Login end")
-            self.initialize.send_notify("TX Login | https://login.taobao.com/")
+            self.initialize.info_message("淘宝扫码登录结束")
+            self.initialize.send_notify("淘宝扫码登录 | https://login.taobao.com/")
 
 
 if __name__ == "__main__":
