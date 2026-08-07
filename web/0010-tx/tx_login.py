@@ -7,7 +7,8 @@
 #   TX_LOGIN_client_id      青龙应用 Client ID（与 secret 同时配置才可上传）
 #   TX_LOGIN_client_secret  青龙应用 Client Secret
 #   TX_LOGIN_ql_url         青龙地址，默认 http://127.0.0.1:5700
-#   TX_LOGIN_target         写入的环境变量名，默认 TX_account
+#   TX_LOGIN_target         写入的环境变量名，默认 TX_account（覆盖写入，不追加）
+#   TX_LOGIN_merge          填 1 时按账号 unb 合并多账号；默认覆盖整段 Cookie
 #   TX_LOGIN_notify         通知开关，填 1 开启
 #   TX_LOGIN_timeout        等待扫码超时秒数，默认 300
 # 依赖：curl_cffi、qrcode
@@ -22,138 +23,38 @@ import re
 import struct
 import sys
 import time
-from importlib import util
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-from curl_cffi import requests
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from public.Base import Base
 
 
-DEFAULT_TARGETS = "TX_account"
-IMPORTANT_COOKIE_KEYS = (
-    "cookie2",
-    "cookie1",
-    "cookie17",
-    "_tb_token_",
-    "t",
-    "_m_h5_tk",
-    "_m_h5_tk_enc",
-    "unb",
-    "sgcookie",
-    "tracknick",
-    "lgc",
-    "_nk_",
-    "dnk",
-    "lid",
-    "cna",
-    "isg",
-    "tfstk",
-    "thw",
-    "wk_cookie2",
-    "wk_unb",
-    "env_bak",
-    "mt",
-    "xlly_s",
-    "_samesite_flag_",
-    "sg",
-    "csg",
-    "skt",
-    "uc1",
-    "uc3",
-    "uc4",
-)
-
-
-class TxLogin:
-    LOGIN_HOST = "https://login.taobao.com"
-    RETURN_URL = "https://www.taobao.com/"
-    GENERATE_PATH = "/havanaone/loginLegacy/qrCode/generate.do"
-    QUERY_PATH = "/havanaone/loginLegacy/qrCode/query.do"
-    LOGIN_PAGE = "/havanaone/login/login.htm"
-    POLL_INTERVAL = 10
-    QR_FILENAME = "tx_login_qr.bmp"
-    QR_SCALE = 10
-
+class TxLogin(Base):
     def __init__(self) -> None:
-        public_path = Path(__file__).resolve().parent.parent.parent / "public"
-        import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
-        import_set_module = util.module_from_spec(import_set_spc)
-        import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TX_LOGIN")
-        self.initialize = self.import_set.import_initialize()
-
-        self.ql_url = self._first_env(
-            self.initialize.env_key("ql_url"),
-            "QL_URL",
-            "QL_HOST",
-        ) or "http://127.0.0.1:5700"
-        self.ql_url = self.ql_url.rstrip("/")
-        self.client_id = self._first_env(
-            self.initialize.env_key("client_id"),
-            "TX_LOGIN_CLIENT_ID",
-            "TB_LOGIN_client_id",
-            "TB_LOGIN_CLIENT_ID",
-            "QL_CLIENT_ID",
-            "ql_client_id",
-        )
-        self.client_secret = self._first_env(
-            self.initialize.env_key("client_secret"),
-            "TX_LOGIN_CLIENT_SECRET",
-            "TB_LOGIN_client_secret",
-            "TB_LOGIN_CLIENT_SECRET",
-            "QL_CLIENT_SECRET",
-            "ql_client_secret",
-        )
-        target_raw = (
-            self._first_env(self.initialize.env_key("target"), "TX_LOGIN_TARGET")
-            or DEFAULT_TARGETS
-        ).strip()
-        self.targets = [x.strip() for x in target_raw.replace("，", ",").split(",") if x.strip()]
-        try:
-            self.timeout = int(
-                self._first_env(self.initialize.env_key("timeout"), "TX_LOGIN_TIMEOUT") or "300"
-            )
-        except ValueError:
-            self.timeout = 300
-        self.qr_path = Path(__file__).resolve().parent / self.QR_FILENAME
-
-        self.ua = (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
-        )
-        self.session = requests.Session(timeout=20, impersonate="chrome")
-        proxy = (os.getenv(self.initialize.env_key("proxy")) or "").strip()
-        if proxy:
-            self.session.proxies = {"http": proxy, "https": proxy}
+        super().__init__(["TX", "TX_JH", "TX_LOGIN"])
         self.session.headers.update({
             "accept": "application/json, text/plain, */*",
             "accept-language": "zh,zh-CN;q=0.9",
-            "user-agent": self.ua,
+            "referer": "https://www.taobao.com/",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+            ),
         })
-        self.login_page_url = (
-            f"{self.LOGIN_HOST}{self.LOGIN_PAGE}"
-            f"?bizName=taobao&f=top&redirectURL={self.RETURN_URL}"
-        )
+
+        self.ql = self.import_set.import_qinglong()
+        self.LOGIN_HOST = "https://login.taobao.com"
+        self.RETURN_URL = "https://www.taobao.com/"
+        self.qr_path = Path(__file__).resolve().parent / "tx_login_qr.bmp"
+        self.login_page_url = f"{self.LOGIN_HOST}/havanaone/login/login.htm?bizName=taobao&f=top&redirectURL={self.RETURN_URL}"
         self._csrf = ""
-        self._ql_token: str | None = None
 
     # ---------- utils ----------
 
     @staticmethod
-    def _first_env(*keys: str) -> str:
-        """按顺序读取环境变量；兼容青龙大小写差异。"""
-        for key in keys:
-            if not key:
-                continue
-            for candidate in (key, key.upper(), key.lower()):
-                val = os.getenv(candidate)
-                if val is not None and str(val).strip():
-                    return str(val).strip()
-        return ""
-
-    @staticmethod
-    def cookies_to_str(cookies: dict[str, str], keys: tuple[str, ...] | None = None) -> str:
+    def cookies_to_str(cookies: dict[str, str], keys: list[str] | None = None) -> str:
         if keys:
             seen: set[str] = set()
             items: list[tuple[str, str]] = []
@@ -223,9 +124,7 @@ class TxLogin:
         """pass.tmall.com/add 等链接把登录 Cookie 放在 query 里。"""
         query = parse_qs(urlparse(str(url)).query, keep_blank_values=True)
         result: dict[str, str] = {}
-        skip = {
-            "target", "login", "tmsc", "opi", "pacc", "_l_g_", "cancelledSubSites",
-        }
+        skip = {"target", "login", "tmsc", "opi", "pacc", "_l_g_", "cancelledSubSites", }
         for key, values in query.items():
             if not values or key in skip:
                 continue
@@ -424,7 +323,39 @@ class TxLogin:
         jar.update(self.refresh_m_h5_tk(jar))
         jar.update(self.session_cookie_dict())
 
-        cookie_str = self.cookies_to_str(jar, IMPORTANT_COOKIE_KEYS)
+        important_cookie_keys = [
+            "cookie2",
+            "cookie1",
+            "cookie17",
+            "_tb_token_",
+            "t",
+            "_m_h5_tk",
+            "_m_h5_tk_enc",
+            "unb",
+            "sgcookie",
+            "tracknick",
+            "lgc",
+            "_nk_",
+            "dnk",
+            "lid",
+            "cna",
+            "isg",
+            "tfstk",
+            "thw",
+            "wk_cookie2",
+            "wk_unb",
+            "env_bak",
+            "mt",
+            "xlly_s",
+            "_samesite_flag_",
+            "sg",
+            "csg",
+            "skt",
+            "uc1",
+            "uc3",
+            "uc4",
+        ]
+        cookie_str = self.cookies_to_str(jar, important_cookie_keys)
         keys = list(self.parse_cookie_str(cookie_str).keys())
         self.initialize.info_message(f"最终 Cookie 字段({len(keys)}): {keys}")
         if "cookie2" not in jar:
@@ -463,7 +394,7 @@ class TxLogin:
         qr.make(fit=True)
         matrix = qr.get_matrix()
         self.qr_path.parent.mkdir(parents=True, exist_ok=True)
-        self._write_qr_bmp(matrix, self.qr_path, scale=self.QR_SCALE)
+        self._write_qr_bmp(matrix, self.qr_path, scale=10)
         return self.qr_path
 
     @staticmethod
@@ -570,7 +501,10 @@ class TxLogin:
             "umidToken": "",
             "umidTag": "NOT_INIT",
         }
-        resp = self.session.get(f"{self.LOGIN_HOST}{self.GENERATE_PATH}", params=params)
+        resp = self.session.get(
+            f"{self.LOGIN_HOST}/havanaone/loginLegacy/qrCode/generate.do",
+            params=params,
+        )
         resp.raise_for_status()
         payload = resp.json()
         data = ((payload.get("content") or {}).get("data") or {})
@@ -593,7 +527,7 @@ class TxLogin:
             "umidToken": "",
             "umidTag": "NOT_INIT",
             "navlanguage": "zh",
-            "navUserAgent": self.ua,
+            "navUserAgent": self.session.headers.get("User-Agent", ""),
             "navPlatform": "Win32",
             "isIframe": "false",
             "banThirdPartyCookie": "false",
@@ -606,7 +540,8 @@ class TxLogin:
             "referer": self.login_page_url,
         }
         resp = self.session.post(
-            f"{self.LOGIN_HOST}{self.QUERY_PATH}?bizEntrance=taobao_pc&bizName=taobao",
+            f"{self.LOGIN_HOST}/havanaone/loginLegacy/qrCode/query.do"
+            "?bizEntrance=taobao_pc&bizName=taobao",
             data=body,
             headers=headers,
         )
@@ -621,10 +556,15 @@ class TxLogin:
         return data, got
 
     def wait_confirmed(self, t: Any, ck: str) -> tuple[dict[str, Any], dict[str, str]]:
-        deadline = time.time() + self.timeout
+        try:
+            timeout = int(self.initialize.get_env("timeout") or "300")
+        except ValueError:
+            timeout = 300
+        poll_interval = 10
+        deadline = time.time() + timeout
         round_no = 0
         self.initialize.info_message(
-            f"开始轮询扫码状态，间隔 {self.POLL_INTERVAL}s，超时 {self.timeout}s"
+            f"开始轮询扫码状态，间隔 {poll_interval}s，超时 {timeout}s"
         )
         while time.time() < deadline:
             round_no += 1
@@ -647,99 +587,10 @@ class TxLogin:
                 raise TimeoutError(f"二维码超时（EXPIRED）：{msg}")
             if status in {"CANCELED", "CANCELLED", "TIMEOUT"}:
                 raise RuntimeError(f"扫码已取消或超时: {status}（{msg}）")
-            time.sleep(self.POLL_INTERVAL)
-        raise TimeoutError(f"等待扫码超时（{self.timeout}s）")
+            time.sleep(poll_interval)
+        raise TimeoutError(f"等待扫码超时（{timeout}s）")
 
     # ---------- qinglong ----------
-
-    def can_upload(self) -> bool:
-        return bool(self.client_id and self.client_secret)
-
-    def ql_headers(self) -> dict[str, str]:
-        return {
-            "Authorization": f"Bearer {self._ql_token}",
-            "Content-Type": "application/json",
-        }
-
-    def ql_get_token(self) -> str:
-        if self._ql_token:
-            return self._ql_token
-        resp = requests.get(
-            f"{self.ql_url}/open/auth/token",
-            params={"client_id": self.client_id, "client_secret": self.client_secret},
-            timeout=15,
-        )
-        data = resp.json()
-        if data.get("code") != 200:
-            raise RuntimeError(f"获取青龙 Token 失败: {data}")
-        self._ql_token = data["data"]["token"]
-        return self._ql_token
-
-    def ql_find_env(self, name: str) -> dict[str, Any] | None:
-        self.ql_get_token()
-        resp = requests.get(
-            f"{self.ql_url}/open/envs",
-            headers=self.ql_headers(),
-            params={"searchValue": name},
-            timeout=15,
-        )
-        data = resp.json()
-        if data.get("code") != 200:
-            raise RuntimeError(f"获取环境变量失败: {data}")
-        for env in data.get("data") or []:
-            if env.get("name") == name:
-                return env
-        return None
-
-    def ql_enable_env(self, env: dict[str, Any]) -> None:
-        if int(env.get("status") or 0) == 0:
-            return
-        resp = requests.put(
-            f"{self.ql_url}/open/envs/enable",
-            headers=self.ql_headers(),
-            json=[env["id"]],
-            timeout=15,
-        )
-        data = resp.json()
-        if data.get("code") != 200:
-            raise RuntimeError(f"启用环境变量失败: {data}")
-
-    def ql_update_env(self, env: dict[str, Any], value: str) -> None:
-        body = {
-            "id": env["id"],
-            "name": env["name"],
-            "value": value,
-            "remarks": env.get("remarks") or "淘宝 Cookie（扫码登录自动更新）",
-        }
-        resp = requests.put(
-            f"{self.ql_url}/open/envs",
-            headers=self.ql_headers(),
-            json=body,
-            timeout=15,
-        )
-        data = resp.json()
-        if data.get("code") != 200:
-            raise RuntimeError(f"更新环境变量失败: {data}")
-        self.ql_enable_env(env)
-
-    def ql_create_env(self, name: str, value: str) -> None:
-        body = [{
-            "name": name,
-            "value": value,
-            "remarks": "淘宝 Cookie（扫码登录自动创建）",
-        }]
-        resp = requests.post(
-            f"{self.ql_url}/open/envs",
-            headers=self.ql_headers(),
-            json=body,
-            timeout=15,
-        )
-        data = resp.json()
-        if data.get("code") != 200:
-            raise RuntimeError(f"创建环境变量失败: {data}")
-        env = self.ql_find_env(name)
-        if env:
-            self.ql_enable_env(env)
 
     @staticmethod
     def split_accounts(value: str) -> list[str]:
@@ -753,6 +604,7 @@ class TxLogin:
         return [raw]
 
     def merge_cookie(self, old_value: str, new_ck: str) -> str:
+        """多账号合并：同 unb/昵称则替换，否则追加。"""
         new_id = self.account_id(new_ck)
         old_list = self.split_accounts(old_value)
         merged: list[str] = []
@@ -768,13 +620,11 @@ class TxLogin:
         return "\n".join(merged)
 
     def upload_cookie(self, cookie_str: str) -> None:
-        if not self.can_upload():
-            id_hit = bool(self.client_id)
-            secret_hit = bool(self.client_secret)
+        if not self.ql.ready:
             self.initialize.error_message(
                 "未读到青龙上传秘钥，无法写入环境变量，仅打印 Cookie。"
-                f"当前 client_id={'有' if id_hit else '无'}，"
-                f"client_secret={'有' if secret_hit else '无'}。"
+                f"当前 client_id={'有' if self.ql.client_id else '无'}，"
+                f"client_secret={'有' if self.ql.client_secret else '无'}。"
                 "请在青龙「环境变量」新建（不是只建应用）："
                 "TX_LOGIN_client_id / TX_LOGIN_client_secret，"
                 "或通用 QL_CLIENT_ID / QL_CLIENT_SECRET；值填应用里的 Client ID/Secret，并确保已启用。"
@@ -782,18 +632,41 @@ class TxLogin:
             self.initialize.info_message(cookie_str)
             return
 
-        self.initialize.info_message(f"连接青龙: {self.ql_url}")
-        self.ql_get_token()
+        self.initialize.info_message(f"连接青龙: {self.ql.base_url}")
         nick = self.account_id(cookie_str) or "未知账号"
-        for name in self.targets:
-            env = self.ql_find_env(name)
-            if env:
-                final = self.merge_cookie(env.get("value") or "", cookie_str)
-                self.ql_update_env(env, final)
-                self.initialize.info_message(f"已更新 {name}（账号 {nick}）", is_flag=True)
-            else:
-                self.ql_create_env(name, cookie_str)
-                self.initialize.info_message(f"已新建 {name}（账号 {nick}）", is_flag=True)
+        remarks = "淘宝 Cookie（扫码登录自动更新）"
+        merge_mode = self.initialize.get_env("merge").lower() in {
+            "1", "true", "yes",
+        }
+        target_raw = self.initialize.get_env("target").strip()
+        if target_raw:
+            targets = [
+                x.strip() for x in target_raw.replace("，", ",").split(",") if x.strip()
+            ]
+        else:
+            targets = [None]  # None → 按前缀写入 env_key("account")
+        for name in targets:
+            result = self.import_set.set_env(
+                "account",
+                cookie_str,
+                name=name,
+                merge=merge_mode,
+                merge_fn=self.merge_cookie if merge_mode else None,
+                remarks=remarks,
+                dedupe=True,
+            )
+            env_name = name or self.import_set.write_env_key("account")
+            if result.get("deleted"):
+                self.initialize.info_message(
+                    f"已删除重复的 {env_name} ×{result['deleted']}"
+                )
+            action_map = {
+                "created": "已新建",
+                "updated": "已覆盖更新",
+                "merged": "已合并更新",
+            }
+            label = action_map.get(result.get("action"), "已更新")
+            self.initialize.info_message(f"{label} {env_name}（账号 {nick}）", is_flag=True)
 
     # ---------- entry ----------
 

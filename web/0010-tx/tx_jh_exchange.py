@@ -16,83 +16,42 @@ import hashlib
 import json
 import os
 import random
+import sys
 import time
 from importlib import util
 from pathlib import Path
+from urllib.parse import unquote
 
-from curl_cffi import requests
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from public.Base import Base
 
 
-class TxJhExchange:
+class TxJhExchange(Base):
     APP_KEY = "12574478"
     HOST = "https://h5api.m.taobao.com"
-    BENEFIT_API = "mtop.taobao.bbs.coin.benefit.get"
-    BENEFIT_DATA = "{}"
-    PAGE_REFERER = "https://jianghu.taobao.com/coin.html"
-
 
     def __init__(self) -> None:
-        script_dir = Path(__file__).resolve().parent
-        public_path = script_dir.parent.parent / "public"
-        import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
-        import_set_module = util.module_from_spec(import_set_spc)
-        import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TX")
-        self.initialize = self.import_set.import_initialize()
-        query_spc = util.spec_from_file_location(
-            "query_taocoin",
-            str(script_dir / "tools" / "query_taocoin.py"),
-        )
-        self.query_taocoin = util.module_from_spec(query_spc)
-        query_spc.loader.exec_module(self.query_taocoin)
-        self.env_name = self.initialize.env_key("account")
-        self.coin_range = self.parse_coin_range(
-            (os.getenv("TX_JH_EXCHANGE_range") or "-1").strip()
-        )
-        self.session = requests.Session(timeout=20)
-        proxy = (os.getenv(self.initialize.env_key("proxy")) or "").strip()
-        if proxy:
-            self.session.proxies = {"http": proxy, "https": proxy}
+        super().__init__(["TX", "TX_JH"])
         self.session.headers.update({
             "accept": "*/*",
             "accept-language": "zh,zh-CN;q=0.9",
-            "referer": self.PAGE_REFERER,
+            "referer": "https://jianghu.taobao.com/coin.html",
             "user-agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                 "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
             ),
         })
-
-    def load_account_list(self):
-        accounts = self.initialize.load_accounts()
-        if not accounts:
-            self.initialize.error_message(
-                f"未配置环境变量 {self.env_name}，请在青龙面板配置 Cookie",
-                is_flag=True,
-            )
-        return accounts
-
-    def run(self) -> None:
-        self.initialize.info_message("TX JH Exchange start")
+        self.coin_range = self.parse_coin_range(
+            (os.getenv("TX_JH_EXCHANGE_range") or "-1").strip()
+        )
         self.initialize.info_message(f"兑换范围：{self.format_coin_range(self.coin_range)}")
-        accounts = self.load_account_list()
-        for index, (account_name, account) in enumerate(accounts, 1):
-            self.initialize.info_message(f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}")
-            try:
-                cookies = self.cookies_to_dict(account)
-                if not cookies:
-                    self.initialize.error_message(f"{account_name} Cookie 为空", is_flag=True)
-                else:
-                    nick = cookies.get("tracknick") or cookies.get("lgc") or account_name
-                    self.do_work(nick, cookies)
-            except Exception as exc:
-                self.initialize.error_message(f"{account_name} 执行失败：{exc}", is_flag=True)
-            if index < len(accounts):
-                delay = random.uniform(2, 5)
-                self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
-                time.sleep(delay)
-        self.initialize.info_message("TX JH Exchange end")
-        self.initialize.send_notify("TX JH Exchange | https://jianghu.taobao.com/coin.html")
+
+    def load_tool(self, module_name: str, filename: str):
+        path = Path(__file__).resolve().parent / "tools" / filename
+        spec = util.spec_from_file_location(module_name, str(path))
+        module = util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
     @staticmethod
     def cookies_to_dict(account: dict) -> dict:
@@ -108,6 +67,52 @@ class TxJhExchange:
         if account.get("token") and len(account) == 1:
             return TxJhExchange.cookies_to_dict({"cookie": account["token"]})
         return {k: v for k, v in account.items() if v is not None}
+
+    @staticmethod
+    def account_nick(cookies: dict, fallback: str = "") -> str:
+        for key in ("tracknick", "lgc", "_nk_", "dnk", "unb"):
+            val = (cookies.get(key) or "").strip()
+            if val:
+                return unquote(val)
+        return fallback
+
+    def run(self) -> None:
+        task_name = "TX JH Exchange"
+        notify_title = "TX JH Exchange | https://jianghu.taobao.com/coin.html"
+        self.initialize.info_message(f"{task_name} start")
+        accounts = self.initialize.load_accounts()
+        if not accounts:
+            env_name = self.initialize.env_key("account")
+            self.initialize.error_message(
+                f"未配置环境变量 {env_name}，请在青龙面板配置 Cookie",
+                is_flag=True,
+            )
+            self.initialize.send_notify(notify_title)
+            return
+        for index, (account_name, account) in enumerate(accounts, 1):
+            self.initialize.info_message(
+                f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}"
+            )
+            try:
+                cookies = self.cookies_to_dict(account)
+                if not cookies:
+                    self.initialize.error_message(
+                        f"{account_name} Cookie 为空", is_flag=True
+                    )
+                else:
+                    nick = self.account_nick(cookies, account_name)
+                    self.do_work(nick, cookies)
+            except Exception as exc:
+                self.initialize.error_message(
+                    f"{account_name} 执行失败：{exc}", is_flag=True
+                )
+            if index < len(accounts):
+                delay = random.uniform(2.0, 5.0)
+                self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
+                time.sleep(delay)
+        self.initialize.info_message(f"{task_name} end")
+        self.initialize.send_notify(notify_title)
+
 
     @staticmethod
     def parse_jsonp(text: str) -> dict:
@@ -287,7 +292,7 @@ class TxJhExchange:
 
     # —— 淘江湖兑换列表 ——
     def query_jianghu_benefits(self, cookies: dict) -> dict:
-        return self.mtop_get(cookies, self.BENEFIT_API, self.BENEFIT_DATA, {
+        return self.mtop_get(cookies, "mtop.taobao.bbs.coin.benefit.get", "{}", {
             "valueType": "original",
             "jsonpIncPrefix": "tbbe",
             "type": "originaljsonp",
@@ -362,7 +367,8 @@ class TxJhExchange:
         return None
 
     def do_work(self, nick: str, cookies: dict) -> None:
-        coin = self.query_taocoin.query_user_taocoin(cookies, session=self.session)
+        query_taocoin = self.load_tool("query_taocoin", "query_taocoin.py")
+        coin = query_taocoin.query_user_taocoin(cookies, session=self.session)
         if not coin.get("ok"):
             self.initialize.error_message(
                 f"{nick} 淘金币余额查询失败：{coin.get('message')}",

@@ -3,7 +3,7 @@
 # @项目名称 :AutoTask
 # @文件名称 :tx_sign.py
 # @文件介绍 :淘宝淘金币签到（查询 → 未签则领取 → 小镇首页）
-# 青龙环境变量（前缀 TX）：
+# 青龙环境变量（前缀 TX / TX_JH）：
 #   TX_account  Cookie（淘系共用）
 #   TX_notify   通知开关，填 1 开启
 # 依赖：curl_cffi
@@ -12,38 +12,22 @@ cron: 15 9,21 * * *
 """
 import hashlib
 import json
-import os
 import random
+import sys
 import time
-from importlib import util
 from pathlib import Path
+from urllib.parse import unquote
 
-from curl_cffi import requests
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from public.Base import Base
 
 
-class TxSign:
+class TxSign(Base):
     APP_KEY = "12574478"
     HOST = "https://h5api.m.taobao.com"
-    CALENDAR_API = "mtop.coingame.sign.calendar.pure.pc"
-    CALENDAR_DATA = '{"bizCode":"taoCoin","subBizCode":"coinTown"}'
-    SIGN_API = "mtop.coingame.collect.reward.pc"
-    SIGN_DATA = '{"bizCode":"taoCoin","subBizCode":"coinTown","page":"pc"}'
-    TOWN_API = "mtop.coingame.town.index.get.pc"
-    TOWN_DATA = '{"bizCode":"taoCoin","subBizCode":"coinTown"}'
-
 
     def __init__(self) -> None:
-        public_path = Path(__file__).resolve().parent.parent.parent / "public"
-        import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
-        import_set_module = util.module_from_spec(import_set_spc)
-        import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TX")
-        self.initialize = self.import_set.import_initialize()
-        self.env_name = self.initialize.env_key("account")
-        self.session = requests.Session(timeout=20)
-        proxy = (os.getenv(self.initialize.env_key("proxy")) or "").strip()
-        if proxy:
-            self.session.proxies = {"http": proxy, "https": proxy}
+        super().__init__(["TX", "TX_JH"])
         self.session.headers.update({
             "accept": "*/*",
             "accept-language": "zh,zh-CN;q=0.9",
@@ -53,36 +37,6 @@ class TxSign:
                 "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
             ),
         })
-
-    def load_account_list(self):
-        accounts = self.initialize.load_accounts()
-        if not accounts:
-            self.initialize.error_message(
-                f"未配置环境变量 {self.env_name}，请在青龙面板配置 Cookie",
-                is_flag=True,
-            )
-        return accounts
-
-    def run(self) -> None:
-        self.initialize.info_message("TX Sign start")
-        accounts = self.load_account_list()
-        for index, (account_name, account) in enumerate(accounts, 1):
-            self.initialize.info_message(f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}")
-            try:
-                cookies = self.cookies_to_dict(account)
-                if not cookies:
-                    self.initialize.error_message(f"{account_name} Cookie 为空", is_flag=True)
-                else:
-                    nick = cookies.get("tracknick") or cookies.get("lgc") or account_name
-                    self.do_work(nick, cookies)
-            except Exception as exc:
-                self.initialize.error_message(f"{account_name} 执行失败：{exc}", is_flag=True)
-            if index < len(accounts):
-                delay = random.uniform(2, 5)
-                self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
-                time.sleep(delay)
-        self.initialize.info_message("TX Sign end")
-        self.initialize.send_notify("TX Sign | https://huodong.taobao.com/")
 
     @staticmethod
     def cookies_to_dict(account: dict) -> dict:
@@ -98,6 +52,51 @@ class TxSign:
         if account.get("token") and len(account) == 1:
             return TxSign.cookies_to_dict({"cookie": account["token"]})
         return {k: v for k, v in account.items() if v is not None}
+
+    @staticmethod
+    def account_nick(cookies: dict, fallback: str = "") -> str:
+        for key in ("tracknick", "lgc", "_nk_", "dnk", "unb"):
+            val = (cookies.get(key) or "").strip()
+            if val:
+                return unquote(val)
+        return fallback
+
+    def run(self) -> None:
+        task_name = "TX Sign"
+        notify_title = "TX Sign | https://huodong.taobao.com/"
+        self.initialize.info_message(f"{task_name} start")
+        accounts = self.initialize.load_accounts()
+        if not accounts:
+            env_name = self.initialize.env_key("account")
+            self.initialize.error_message(
+                f"未配置环境变量 {env_name}，请在青龙面板配置 Cookie",
+                is_flag=True,
+            )
+            self.initialize.send_notify(notify_title)
+            return
+        for index, (account_name, account) in enumerate(accounts, 1):
+            self.initialize.info_message(
+                f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}"
+            )
+            try:
+                cookies = self.cookies_to_dict(account)
+                if not cookies:
+                    self.initialize.error_message(
+                        f"{account_name} Cookie 为空", is_flag=True
+                    )
+                else:
+                    nick = self.account_nick(cookies, account_name)
+                    self.do_work(nick, cookies)
+            except Exception as exc:
+                self.initialize.error_message(
+                    f"{account_name} 执行失败：{exc}", is_flag=True
+                )
+            if index < len(accounts):
+                delay = random.uniform(2.0, 5.0)
+                self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
+                time.sleep(delay)
+        self.initialize.info_message(f"{task_name} end")
+        self.initialize.send_notify(notify_title)
 
     @staticmethod
     def parse_jsonp(text: str) -> dict:
@@ -190,25 +189,38 @@ class TxSign:
         except Exception:
             return json.loads(text)
 
-    # —— 签到 ——
     def sign_calendar(self, cookies: dict) -> dict:
-        return self.mtop_get(cookies, self.CALENDAR_API, self.CALENDAR_DATA, {
-            "valueType": "original",
-            "jsonpIncPrefix": "tbbe",
-            "type": "originaljsonp",
-            "callback": "mtopjsonptbbe1",
-        })
+        return self.mtop_get(
+            cookies,
+            "mtop.coingame.sign.calendar.pure.pc",
+            '{"bizCode":"taoCoin","subBizCode":"coinTown"}',
+            {
+                "valueType": "original",
+                "jsonpIncPrefix": "tbbe",
+                "type": "originaljsonp",
+                "callback": "mtopjsonptbbe1",
+            },
+        )
 
     def collect_reward(self, cookies: dict) -> dict:
-        return self.mtop_post(cookies, self.SIGN_API, self.SIGN_DATA)
+        return self.mtop_post(
+            cookies,
+            "mtop.coingame.collect.reward.pc",
+            '{"bizCode":"taoCoin","subBizCode":"coinTown","page":"pc"}',
+        )
 
     def town_index(self, cookies: dict) -> dict:
-        return self.mtop_get(cookies, self.TOWN_API, self.TOWN_DATA, {
-            "valueType": "original",
-            "jsonpIncPrefix": "tbbe",
-            "type": "originaljsonp",
-            "callback": "mtopjsonptbbe10",
-        })
+        return self.mtop_get(
+            cookies,
+            "mtop.coingame.town.index.get.pc",
+            '{"bizCode":"taoCoin","subBizCode":"coinTown"}',
+            {
+                "valueType": "original",
+                "jsonpIncPrefix": "tbbe",
+                "type": "originaljsonp",
+                "callback": "mtopjsonptbbe10",
+            },
+        )
 
     @staticmethod
     def calendar_days(data: dict) -> list:
@@ -305,7 +317,6 @@ class TxSign:
             self.print_town_index(nick, town.get("data") or {})
         else:
             self.initialize.error_message(f"{nick} 小镇首页失败：{self.ret_msg(town)}", is_flag=True)
-
 
 
 if __name__ == "__main__":

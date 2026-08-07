@@ -12,75 +12,32 @@ cron: 1 1 1 1 1
 """
 import hashlib
 import json
-import os
 import random
+import sys
 import time
-from importlib import util
 from pathlib import Path
+from urllib.parse import unquote
 
-from curl_cffi import requests
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from public.Base import Base
 
 
-class TxJhTask:
+class TxJhTask(Base):
+    REFERER = "https://jianghu.taobao.com/coin.html"
     APP_KEY = "12574478"
     HOST = "https://h5api.m.taobao.com"
-    TASK_API = "mtop.taobao.pentaprism.scene.query"
-    TASK_DATA = '{"sceneId":"8244"}'
-    PAGE_URL = "https://jianghu.taobao.com/coin.html"
-    PAGE_REFERER = "https://jianghu.taobao.com/coin.html"
-
 
     def __init__(self) -> None:
-        public_path = Path(__file__).resolve().parent.parent.parent / "public"
-        import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
-        import_set_module = util.module_from_spec(import_set_spc)
-        import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TX")
-        self.initialize = self.import_set.import_initialize()
-        self.env_name = self.initialize.env_key("account")
-        self.session = requests.Session(timeout=20)
-        proxy = (os.getenv(self.initialize.env_key("proxy")) or "").strip()
-        if proxy:
-            self.session.proxies = {"http": proxy, "https": proxy}
+        super().__init__(["TX", "TX_JH"])
         self.session.headers.update({
             "accept": "*/*",
             "accept-language": "zh,zh-CN;q=0.9",
-            "referer": self.PAGE_REFERER,
+            "referer": self.REFERER,
             "user-agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                 "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
             ),
         })
-
-    def load_account_list(self):
-        accounts = self.initialize.load_accounts()
-        if not accounts:
-            self.initialize.error_message(
-                f"未配置环境变量 {self.env_name}，请在青龙面板配置 Cookie",
-                is_flag=True,
-            )
-        return accounts
-
-    def run(self) -> None:
-        self.initialize.info_message("TX JH Task start")
-        accounts = self.load_account_list()
-        for index, (account_name, account) in enumerate(accounts, 1):
-            self.initialize.info_message(f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}")
-            try:
-                cookies = self.cookies_to_dict(account)
-                if not cookies:
-                    self.initialize.error_message(f"{account_name} Cookie 为空", is_flag=True)
-                else:
-                    nick = cookies.get("tracknick") or cookies.get("lgc") or account_name
-                    self.do_work(nick, cookies)
-            except Exception as exc:
-                self.initialize.error_message(f"{account_name} 执行失败：{exc}", is_flag=True)
-            if index < len(accounts):
-                delay = random.uniform(2, 5)
-                self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
-                time.sleep(delay)
-        self.initialize.info_message("TX JH Task end")
-        self.initialize.send_notify("TX JH Task | https://jianghu.taobao.com/coin.html")
 
     @staticmethod
     def cookies_to_dict(account: dict) -> dict:
@@ -96,6 +53,51 @@ class TxJhTask:
         if account.get("token") and len(account) == 1:
             return TxJhTask.cookies_to_dict({"cookie": account["token"]})
         return {k: v for k, v in account.items() if v is not None}
+
+    @staticmethod
+    def account_nick(cookies: dict, fallback: str = "") -> str:
+        for key in ("tracknick", "lgc", "_nk_", "dnk", "unb"):
+            val = (cookies.get(key) or "").strip()
+            if val:
+                return unquote(val)
+        return fallback
+
+    def run(self) -> None:
+        task_name = "TX JH Task"
+        notify_title = "TX JH Task | https://jianghu.taobao.com/coin.html"
+        self.initialize.info_message(f"{task_name} start")
+        accounts = self.initialize.load_accounts()
+        if not accounts:
+            env_name = self.initialize.env_key("account")
+            self.initialize.error_message(
+                f"未配置环境变量 {env_name}，请在青龙面板配置 Cookie",
+                is_flag=True,
+            )
+            self.initialize.send_notify(notify_title)
+            return
+        for index, (account_name, account) in enumerate(accounts, 1):
+            self.initialize.info_message(
+                f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}"
+            )
+            try:
+                cookies = self.cookies_to_dict(account)
+                if not cookies:
+                    self.initialize.error_message(
+                        f"{account_name} Cookie 为空", is_flag=True
+                    )
+                else:
+                    nick = self.account_nick(cookies, account_name)
+                    self.do_work(nick, cookies)
+            except Exception as exc:
+                self.initialize.error_message(
+                    f"{account_name} 执行失败：{exc}", is_flag=True
+                )
+            if index < len(accounts):
+                delay = random.uniform(2.0, 5.0)
+                self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
+                time.sleep(delay)
+        self.initialize.info_message(f"{task_name} end")
+        self.initialize.send_notify(notify_title)
 
     @staticmethod
     def parse_jsonp(text: str) -> dict:
@@ -190,13 +192,18 @@ class TxJhTask:
 
     # —— 淘江湖任务（sceneId=8244） ——
     def query_tasks(self, cookies: dict) -> dict:
-        return self.mtop_get(cookies, self.TASK_API, self.TASK_DATA, {
-            "type": "jsonp",
-            "timeout": "10000",
-            "pageUrl": self.PAGE_URL,
-            "preventFallback": "true",
-            "callback": "mtopjsonp7",
-        })
+        return self.mtop_get(
+            cookies,
+            "mtop.taobao.pentaprism.scene.query",
+            '{"sceneId":"8244"}',
+            {
+                "type": "jsonp",
+                "timeout": "10000",
+                "pageUrl": "https://jianghu.taobao.com/coin.html",
+                "preventFallback": "true",
+                "callback": "mtopjsonp7",
+            },
+        )
 
     @staticmethod
     def task_title(item: dict) -> str:
@@ -278,7 +285,7 @@ class TxJhTask:
             url,
             cookies=cookies,
             headers={
-                "referer": self.PAGE_REFERER,
+                "referer": self.REFERER,
                 "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             },
             allow_redirects=True,

@@ -16,17 +16,11 @@ from typing import Any, Callable
 from curl_cffi import requests
 
 APP_KEY = "12574478"
-HOST = "https://h5api.m.taobao.com"
-QUERY_API = "mtop.taobao.pentaprism.scene.query"
-TRIGGER_API = "mtop.taobao.pentaprism.scene.trigger"
-
 DEFAULT_TAO_COIN_SCENE_ID = "8676"
 DEFAULT_TAO_COIN_ASAC = "2A24A178YUFG02XVGJNZFM"
 DEFAULT_PAGE_URL = "https://huodong.taobao.com/wow/z/tbhome/pc-growth/tao-coin"
 DEFAULT_REFERER = "https://huodong.taobao.com/"
 
-JUMP_TASK_TYPES = {"task_jump", "system_task_browse"}
-DONE_STATUSES = {"AWARDING", "COMPLETE", "COMPLETED", "DONE", "FINISH"}
 PENDING_STATUSES = {"", "ACCEPTED", "INIT"}
 
 
@@ -78,43 +72,40 @@ def mtop_get(
     api: str,
     data: str,
     *,
-    session: requests.Session | None = None,
+    session: requests.Session,
     extra_params: dict | None = None,
     referer: str = DEFAULT_REFERER,
     timeout: int = 20,
     proxies: dict | None = None,
 ) -> dict:
-    own_session = session is None
-    sess = session or requests.Session(timeout=timeout)
-    try:
-        if proxies:
-            sess.proxies = proxies
-        t, sign = _mtop_sign(cookies, data)
-        params = {
-            "jsv": "2.5.1",
-            "appKey": APP_KEY,
-            "t": t,
-            "sign": sign,
-            "api": api,
-            "v": "1.0",
-            "timeout": "5000",
-            "dataType": "jsonp",
-            "callback": "mtopjsonp1",
-            "data": data,
-        }
-        if extra_params:
-            params.update(extra_params)
-        url = f"{HOST}/h5/{api}/1.0/"
-        response = sess.get(
-            url,
-            params=params,
-            cookies=cookies,
-            headers=_default_headers(referer),
-        )
-        return parse_jsonp(response.text)
-    finally:
-        if own_session:
-            sess.close()
+    if session is None:
+        raise ValueError("必须传入 session，禁止单独 requests 请求")
+    if proxies:
+        session.proxies = proxies
+    t, sign = _mtop_sign(cookies, data)
+    params = {
+        "jsv": "2.5.1",
+        "appKey": APP_KEY,
+        "t": t,
+        "sign": sign,
+        "api": api,
+        "v": "1.0",
+        "timeout": "5000",
+        "dataType": "jsonp",
+        "callback": "mtopjsonp1",
+        "data": data,
+    }
+    if extra_params:
+        params.update(extra_params)
+    url = f"https://h5api.m.taobao.com/h5/{api}/1.0/"
+    response = session.get(
+        url,
+        params=params,
+        cookies=cookies,
+        headers=_default_headers(referer),
+        timeout=timeout,
+    )
+    return parse_jsonp(response.text)
 
 
 def build_query_data(scene_id: str, asac: str | None = None) -> str:
@@ -130,7 +121,7 @@ def query_scene(
     *,
     asac: str | None = DEFAULT_TAO_COIN_ASAC,
     page_url: str = DEFAULT_PAGE_URL,
-    session: requests.Session | None = None,
+    session: requests.Session,
     referer: str = DEFAULT_REFERER,
     timeout: int = 20,
     proxies: dict | None = None,
@@ -139,7 +130,7 @@ def query_scene(
     data = build_query_data(scene_id, asac)
     return mtop_get(
         cookies,
-        QUERY_API,
+        "mtop.taobao.pentaprism.scene.query",
         data,
         session=session,
         referer=referer,
@@ -238,7 +229,7 @@ def task_url(item: dict) -> str:
 
 def is_jump_task(item: dict) -> bool:
     task_type = str(item.get("taskType") or "")
-    if task_type in JUMP_TASK_TYPES:
+    if task_type in {"task_jump", "system_task_browse"}:
         return True
     assets = item.get("assets") or {}
     return bool(assets.get("action") or assets.get("prepubAction"))
@@ -248,7 +239,7 @@ def is_task_pending(item: dict) -> bool:
     if str(item.get("complete")).lower() == "true":
         return False
     status = str(item.get("status") or (item.get("progress") or {}).get("status") or "")
-    if status in DONE_STATUSES:
+    if status in {"AWARDING", "COMPLETE", "COMPLETED", "DONE", "FINISH"}:
         return False
     prog = item.get("progress") or {}
     if str(prog.get("status") or "") in {"COMPLETE", "COMPLETED"}:
@@ -284,7 +275,7 @@ def trigger_scene(
     cookies: dict,
     item: dict,
     *,
-    session: requests.Session | None = None,
+    session: requests.Session,
     page_url: str = DEFAULT_PAGE_URL,
     referer: str = DEFAULT_REFERER,
     ua_builder: Callable[[dict | None], str] | None = None,
@@ -295,7 +286,7 @@ def trigger_scene(
     data = build_trigger_data(item, cookies=cookies, ua_builder=ua_builder)
     return mtop_get(
         cookies,
-        TRIGGER_API,
+        "mtop.taobao.pentaprism.scene.trigger",
         data,
         session=session,
         referer=referer,
@@ -316,7 +307,7 @@ def visit_task_url(
     cookies: dict,
     url: str,
     *,
-    session: requests.Session | None = None,
+    session: requests.Session,
     referer: str = DEFAULT_PAGE_URL,
     duration: int = 0,
     timeout: int = 20,
@@ -324,26 +315,23 @@ def visit_task_url(
 ) -> int:
     if not url or url == "-":
         raise RuntimeError("任务 URL 为空")
-    own_session = session is None
-    sess = session or requests.Session(timeout=timeout)
-    try:
-        if proxies:
-            sess.proxies = proxies
-        response = sess.get(
-            url,
-            cookies=cookies,
-            headers={
-                **_default_headers(referer),
-                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            },
-            allow_redirects=True,
-        )
-        if duration > 0:
-            time.sleep(duration)
-        return response.status_code
-    finally:
-        if own_session:
-            sess.close()
+    if session is None:
+        raise ValueError("必须传入 session，禁止单独 requests 请求")
+    if proxies:
+        session.proxies = proxies
+    response = session.get(
+        url,
+        cookies=cookies,
+        headers={
+            **_default_headers(referer),
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+        allow_redirects=True,
+        timeout=timeout,
+    )
+    if duration > 0:
+        time.sleep(duration)
+    return response.status_code
 
 
 def iter_pending_jump_tasks(data: dict) -> list[dict]:

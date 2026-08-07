@@ -222,6 +222,7 @@ class TianJiYao:
         self.initialize.info_message("天机爻签到开始")
         self.emit("站点：https://tianjiyao.com/")
         accounts = self.initialize.load_accounts()
+        accounts = [[1,{"email": "17630583910@163.com", "password": ".ai94264744946"}]]
         if not accounts:
             self.initialize.error_message(
                 f"未配置账号。请设置 {self.env_name}="

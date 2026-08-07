@@ -66,6 +66,7 @@ self.import_set = self.import_set.ImportSet("BD")
 | `BD_account` | 账号 Cookie，多账号用 `&` 或换行分隔 |
 | `BD_notify` | 通知开关，填 `1` 开启 |
 | `BD_switch_delay` | 随机延迟开关，填 `1` 开启 |
+| `{前缀}_proxy` | 可选代理，见下方「代理配置」 |
 | `BD_功能名` | 后续功能按此前缀扩展 |
 | `ALI_account` | 阿里云盘账号，可直接填 `refresh_token`，或 `{"refresh_token":"xxx"}`，支持多账号 |
 | `ALI_notify` | 阿里云盘通知开关，填 `1` 开启 |
@@ -90,12 +91,33 @@ self.import_set = self.import_set.ImportSet("BD")
 | `JJ_notify` | 稀土掘金通知开关，填 `1` 开启 |
 | `TX_account` | 淘系共用 Cookie（需含 `_m_h5_tk`、`cookie2`）；多账号用 `&&` 或换行 |
 | `TX_notify` | 淘系通知开关，填 `1` 开启 |
+| `TX_JH_account` / `TX_JH_notify` | 可选；与 `TX_*` 并存时 **优先使用 TX_JH_*** |
 | `TX_EXCHANGE_range` | 金币换好礼范围（按 `reduceCoinAmount`）：`-1` / `100-1000` / `100-` / `-1000` |
 | `TX_JH_EXCHANGE_range` | 淘江湖兑换范围（按 `costCoin`）：`-1` / `100-1000` / `100-` / `-1000` |
 | `TX_LOGIN_client_id` | 青龙应用 Client ID（与 secret 同时配置才可自动上传 Cookie） |
 | `TX_LOGIN_client_secret` | 青龙应用 Client Secret |
 | `TX_LOGIN_ql_url` | 青龙地址，默认 `http://127.0.0.1:5700` |
-| `TX_LOGIN_target` | 写入的环境变量名，默认 `TX_account` |
+| `TX_LOGIN_target` | 写入的环境变量名，默认按前缀写入 `account`（覆盖写入） |
+| `TX_proxy` | 淘系代理（见「代理配置」）；多前缀时后写优先 |
+
+##### 代理配置
+
+青龙新建环境变量 `{前缀}_proxy`（如 `TX_proxy`、`TJY_proxy`），支持两种值：
+
+1. **直连**：`http://127.0.0.1:7890` 或 `1.2.3.4:7890`
+2. **提取 API**：填完整接口 URL；脚本会请求该地址，从响应中解析 `ip:port`，再写成 `http://ip:port` 给 session
+
+携趣等提取接口示例（参数按服务商后台填写）：
+
+```text
+http://api.xiequ.cn/VAD/GetIp.aspx?act=get&uid=你的uid&...其它参数
+```
+
+接口需返回含 `ip:port` 的纯文本；未配置则不走代理。解析失败时日志会打印配置说明。
+
+代理失效时会自动重新读取 `{前缀}_proxy`（提取 API 会再要一个新 IP）并重试当前请求；次数由 `{前缀}_proxy_retry` 控制，默认 `2`。
+
+| `TX_LOGIN_merge` | 填 `1` 时按 `unb` 合并多账号；默认直接覆盖旧 Cookie |
 | `TX_LOGIN_timeout` | 等待扫码超时秒数，默认 `300`（每 10s 查询一次） |
 | `TX_LOGIN_notify` | 淘宝扫码登录通知开关，填 `1` 开启 |
 
@@ -215,14 +237,14 @@ sessionid=xxx; sid_tt=xxx; sessionid_ss=xxx; ...
 
 运行 `web/0010-tx/tx_login.py`，在青龙日志中查看 ASCII 二维码，用淘宝 App 扫码确认。登录成功后：
 
-1. 已配置 `TX_LOGIN_client_id` + `TX_LOGIN_client_secret`：写入/合并到 `TX_account`（同账号按 `unb` 覆盖；可用 `TX_LOGIN_target` 覆盖目标名）
+1. 已配置 `TX_LOGIN_client_id` + `TX_LOGIN_client_secret`：覆盖写入 `TX_account`（同名重复项会删掉只留一条；多账号合并需设 `TX_LOGIN_merge=1`）
 2. 未配置秘钥：只把 Cookie 打印到日志，需手动粘贴到 `TX_account`
 
 青龙应用权限：系统设置 → 应用设置 → 新建应用并勾选「环境变量」。把生成的 Client ID / Secret **再写入环境变量** `TX_LOGIN_client_id`、`TX_LOGIN_client_secret`（也可改用通用名 `QL_CLIENT_ID` / `QL_CLIENT_SECRET`）。只建应用不建环境变量时脚本读不到。建议 cron：`1 1 1 1 1`（手动运行）。
 
 ##### 淘金币 Cookie 获取方法
 
-脚本在目录 `web/0010-tx/`，共用同一个 Cookie 变量 `TX_account`：
+脚本在目录 `web/0010-tx/`，前缀 `["TX", "TX_JH"]`（有 `TX_JH_*` 时覆盖 `TX_*`）：
 
 | 脚本 | Cookie | 通知 | 建议 cron |
 |------|--------|------|-----------|
