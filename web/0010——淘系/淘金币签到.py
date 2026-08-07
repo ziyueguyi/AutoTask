@@ -8,7 +8,7 @@
 #   TJB_SIGN_notify   通知开关，填 1 开启
 # 依赖：curl_cffi
 const $ = new Env('淘金币签到')
-cron: 30 8 * * *
+cron: 0 9 * * * & 15 21 * * *
 """
 import hashlib
 import json

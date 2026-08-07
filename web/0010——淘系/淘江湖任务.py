@@ -8,7 +8,7 @@
 #   TJH_TASK_notify   通知开关，填 1 开启
 # 依赖：curl_cffi
 const $ = new Env('淘江湖任务')
-cron: 50 8 * * *
+cron: 1 1 1 1 1
 """
 import hashlib
 import json

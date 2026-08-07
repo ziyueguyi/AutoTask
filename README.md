@@ -227,7 +227,7 @@ sessionid=xxx; sid_tt=xxx; sessionid_ss=xxx; ...
 1. 已配置 `TB_LOGIN_client_id` + `TB_LOGIN_client_secret`：按 `TB_LOGIN_target` 写入/合并 Cookie（同账号按 `unb` 覆盖）
 2. 未配置秘钥：只把 Cookie 打印到日志，需手动粘贴到各 `*_account`
 
-青龙应用权限：系统设置 → 应用设置 → 勾选「环境变量」。建议 cron：手动运行，或 `0 7 * * *`。
+青龙应用权限：系统设置 → 应用设置 → 勾选「环境变量」。建议 cron：`1 1 1 1 1`（手动运行）。
 
 ##### 淘金币 Cookie 获取方法
 
@@ -235,12 +235,12 @@ sessionid=xxx; sid_tt=xxx; sessionid_ss=xxx; ...
 
 | 脚本 | Cookie | 通知 | 建议 cron |
 |------|--------|------|-----------|
-| `淘宝扫码登录.py` | 写入 `TB_LOGIN_target` | `TB_LOGIN_notify` | 手动 / `0 7 * * *` |
-| `淘金币签到.py` | `TJB_SIGN_account` | `TJB_SIGN_notify` | `30 8 * * *` |
-| `淘金币任务.py` | `TJB_TASK_account` | `TJB_TASK_notify` | `35 8 * * *` |
-| `淘金币兑换.py` | `TJB_EXCHANGE_account` | `TJB_EXCHANGE_notify` | `40 8 * * *` |
-| `淘江湖兑换.py` | `TJH_EXCHANGE_account` | `TJH_EXCHANGE_notify` | `45 8 * * *` |
-| `淘江湖任务.py` | `TJH_TASK_account` | `TJH_TASK_notify` | `50 8 * * *` |
+| `淘宝扫码登录.py` | 写入 `TB_LOGIN_target` | `TB_LOGIN_notify` | `1 1 1 1 1`（手动） |
+| `淘金币签到.py` | `TJB_SIGN_account` | `TJB_SIGN_notify` | `0 9 * * * & 15 21 * * *` |
+| `淘金币任务.py` | `TJB_TASK_account` | `TJB_TASK_notify` | `0 9 * * * & 15 21 * * *` |
+| `淘金币兑换.py` | `TJB_EXCHANGE_account` | `TJB_EXCHANGE_notify` | `1 1 1 1 1` |
+| `淘江湖兑换.py` | `TJH_EXCHANGE_account` | `TJH_EXCHANGE_notify` | `1 1 1 1 1` |
+| `淘江湖任务.py` | `TJH_TASK_account` | `TJH_TASK_notify` | `1 1 1 1 1` |
 
 `TJB_EXCHANGE_range` / `TJH_EXCHANGE_range`（默认 `-1`）：
 

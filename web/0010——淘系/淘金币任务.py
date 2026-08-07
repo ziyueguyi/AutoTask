@@ -8,7 +8,7 @@
 #   TJB_TASK_notify   通知开关，填 1 开启
 # 依赖：curl_cffi；任务逻辑见 tools/pentaprism_task.py
 const $ = new Env('淘金币任务')
-cron: 35 8 * * *
+cron: 0 9 * * * & 15 21 * * *
 """
 import os
 import random

@@ -12,7 +12,7 @@
 #   TB_LOGIN_timeout        等待扫码超时秒数，默认 300
 # 依赖：curl_cffi、qrcode、pillow
 const $ = new Env('淘宝扫码登录')
-cron: 0 7 * * *
+cron: 1 1 1 1 1
 """
 from __future__ import annotations
 

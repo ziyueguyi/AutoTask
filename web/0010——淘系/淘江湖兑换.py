@@ -10,7 +10,7 @@
 #                        -1 / 100-1000 / 100- / -1000
 # 依赖：curl_cffi
 const $ = new Env('淘江湖兑换')
-cron: 45 8 * * *
+cron: 1 1 1 1 1
 """
 import hashlib
 import json
