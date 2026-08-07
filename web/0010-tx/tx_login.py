@@ -77,13 +77,37 @@ class TxLogin:
         self.import_set = import_set_module.ImportSet("TX_LOGIN")
         self.initialize = self.import_set.import_initialize()
 
-        self.ql_url = (os.getenv(self.initialize.env_key("ql_url")) or "http://127.0.0.1:5700").rstrip("/")
-        self.client_id = (os.getenv(self.initialize.env_key("client_id")) or "").strip()
-        self.client_secret = (os.getenv(self.initialize.env_key("client_secret")) or "").strip()
-        target_raw = (os.getenv(self.initialize.env_key("target")) or DEFAULT_TARGETS).strip()
+        self.ql_url = self._first_env(
+            self.initialize.env_key("ql_url"),
+            "QL_URL",
+            "QL_HOST",
+        ) or "http://127.0.0.1:5700"
+        self.ql_url = self.ql_url.rstrip("/")
+        self.client_id = self._first_env(
+            self.initialize.env_key("client_id"),
+            "TX_LOGIN_CLIENT_ID",
+            "TB_LOGIN_client_id",
+            "TB_LOGIN_CLIENT_ID",
+            "QL_CLIENT_ID",
+            "ql_client_id",
+        )
+        self.client_secret = self._first_env(
+            self.initialize.env_key("client_secret"),
+            "TX_LOGIN_CLIENT_SECRET",
+            "TB_LOGIN_client_secret",
+            "TB_LOGIN_CLIENT_SECRET",
+            "QL_CLIENT_SECRET",
+            "ql_client_secret",
+        )
+        target_raw = (
+            self._first_env(self.initialize.env_key("target"), "TX_LOGIN_TARGET")
+            or DEFAULT_TARGETS
+        ).strip()
         self.targets = [x.strip() for x in target_raw.replace("，", ",").split(",") if x.strip()]
         try:
-            self.timeout = int(os.getenv(self.initialize.env_key("timeout")) or "300")
+            self.timeout = int(
+                self._first_env(self.initialize.env_key("timeout"), "TX_LOGIN_TIMEOUT") or "300"
+            )
         except ValueError:
             self.timeout = 300
         self.qr_path = Path(__file__).resolve().parent / self.QR_FILENAME
@@ -109,6 +133,18 @@ class TxLogin:
         self._ql_token: str | None = None
 
     # ---------- utils ----------
+
+    @staticmethod
+    def _first_env(*keys: str) -> str:
+        """按顺序读取环境变量；兼容青龙大小写差异。"""
+        for key in keys:
+            if not key:
+                continue
+            for candidate in (key, key.upper(), key.lower()):
+                val = os.getenv(candidate)
+                if val is not None and str(val).strip():
+                    return str(val).strip()
+        return ""
 
     @staticmethod
     def cookies_to_str(cookies: dict[str, str], keys: tuple[str, ...] | None = None) -> str:
@@ -507,8 +543,15 @@ class TxLogin:
 
     def upload_cookie(self, cookie_str: str) -> None:
         if not self.can_upload():
+            id_hit = bool(self.client_id)
+            secret_hit = bool(self.client_secret)
             self.initialize.error_message(
-                "未配置 TX_LOGIN_client_id / TX_LOGIN_client_secret，无法上传，仅打印 Cookie"
+                "未读到青龙上传秘钥，无法写入环境变量，仅打印 Cookie。"
+                f"当前 client_id={'有' if id_hit else '无'}，"
+                f"client_secret={'有' if secret_hit else '无'}。"
+                "请在青龙「环境变量」新建（不是只建应用）："
+                "TX_LOGIN_client_id / TX_LOGIN_client_secret，"
+                "或通用 QL_CLIENT_ID / QL_CLIENT_SECRET；值填应用里的 Client ID/Secret，并确保已启用。"
             )
             self.initialize.info_message(cookie_str)
             return
@@ -538,6 +581,9 @@ class TxLogin:
             self.initialize.info_message("扫码确认成功，正在收集 Cookie", is_flag=True)
             cookie_str = self.collect_cookies(confirmed)
             nick = self.account_id(cookie_str) or "未知"
+            if nick == "未知":
+                keys = list(self.parse_cookie_str(cookie_str).keys())
+                self.initialize.info_message(f"Cookie 字段: {keys}")
             self.initialize.info_message(f"登录账号: {nick}", is_flag=True)
             self.upload_cookie(cookie_str)
         except Exception as exc:

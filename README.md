@@ -226,7 +226,7 @@ sessionid=xxx; sid_tt=xxx; sessionid_ss=xxx; ...
 1. 已配置 `TX_LOGIN_client_id` + `TX_LOGIN_client_secret`：按 `TX_LOGIN_target` 写入/合并 Cookie（同账号按 `unb` 覆盖）
 2. 未配置秘钥：只把 Cookie 打印到日志，需手动粘贴到各 `*_account`
 
-青龙应用权限：系统设置 → 应用设置 → 勾选「环境变量」。建议 cron：`1 1 1 1 1`（手动运行）。
+青龙应用权限：系统设置 → 应用设置 → 新建应用并勾选「环境变量」。把生成的 Client ID / Secret **再写入环境变量** `TX_LOGIN_client_id`、`TX_LOGIN_client_secret`（也可改用通用名 `QL_CLIENT_ID` / `QL_CLIENT_SECRET`）。只建应用不建环境变量时脚本读不到。建议 cron：`1 1 1 1 1`（手动运行）。
 
 ##### 淘金币 Cookie 获取方法
 
