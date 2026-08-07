@@ -10,7 +10,7 @@
 #   TX_LOGIN_target         写入的环境变量名，逗号分隔；默认同步全部淘系 *_account
 #   TX_LOGIN_notify         通知开关，填 1 开启
 #   TX_LOGIN_timeout        等待扫码超时秒数，默认 300
-# 依赖：curl_cffi、qrcode、pillow
+# 依赖：curl_cffi、qrcode
 const $ = new Env('淘宝扫码登录')
 cron: 1 1 1 1 1
 """
@@ -19,6 +19,7 @@ from __future__ import annotations
 import io
 import os
 import re
+import struct
 import sys
 import time
 from importlib import util
@@ -65,7 +66,8 @@ class TxLogin:
     QUERY_PATH = "/havanaone/loginLegacy/qrCode/query.do"
     LOGIN_PAGE = "/havanaone/login/login.htm"
     POLL_INTERVAL = 10
-    QR_FILENAME = "tx_login_qr.png"
+    QR_FILENAME = "tx_login_qr.bmp"
+    QR_SCALE = 10
 
     def __init__(self) -> None:
         public_path = Path(__file__).resolve().parent.parent.parent / "public"
@@ -159,21 +161,65 @@ class TxLogin:
             import qrcode
         except ImportError as exc:
             raise RuntimeError(
-                "缺少依赖 qrcode / pillow，请在青龙「依赖管理」安装：qrcode pillow"
+                "缺少依赖 qrcode，请在青龙「依赖管理」安装：qrcode"
             ) from exc
 
         qr = qrcode.QRCode(
             version=None,
             error_correction=qrcode.constants.ERROR_CORRECT_M,
-            box_size=10,
+            box_size=1,
             border=2,
         )
         qr.add_data(content)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
+        matrix = qr.get_matrix()
         self.qr_path.parent.mkdir(parents=True, exist_ok=True)
-        img.save(self.qr_path)
+        self._write_qr_bmp(matrix, self.qr_path, scale=self.QR_SCALE)
         return self.qr_path
+
+    @staticmethod
+    def _write_qr_bmp(matrix: list, path: Path, scale: int = 10) -> None:
+        """纯标准库写 BMP，不依赖 pillow。"""
+        rows = len(matrix)
+        cols = len(matrix[0]) if rows else 0
+        width = cols * scale
+        height = rows * scale
+        row_stride = (width * 3 + 3) & ~3
+        pixel_size = row_stride * height
+        header_size = 14 + 40
+        file_size = header_size + pixel_size
+
+        pixels = bytearray(pixel_size)
+        for y in range(rows):
+            for x in range(cols):
+                # matrix True = 黑模块
+                color = 0 if matrix[y][x] else 255
+                for dy in range(scale):
+                    # BMP 自下而上
+                    py = height - 1 - (y * scale + dy)
+                    offset = py * row_stride + x * scale * 3
+                    for dx in range(scale):
+                        i = offset + dx * 3
+                        pixels[i:i + 3] = bytes((color, color, color))
+
+        with path.open("wb") as f:
+            f.write(b"BM")
+            f.write(struct.pack("<IHHI", file_size, 0, 0, header_size))
+            f.write(struct.pack(
+                "<IiiHHIIiiII",
+                40,
+                width,
+                height,
+                1,
+                24,
+                0,
+                pixel_size,
+                2835,
+                2835,
+                0,
+                0,
+            ))
+            f.write(pixels)
 
     @staticmethod
     def render_ascii_qr(content: str) -> str:

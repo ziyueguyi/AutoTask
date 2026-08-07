@@ -47,7 +47,6 @@ curl_cffi
 fake_useragent
 rsa
 qrcode
-pillow
 ```
 
 </details>
