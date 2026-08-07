@@ -267,6 +267,14 @@ class TxSign(Base):
         self.initialize.info_message(f"{nick} {self.day_summary(today, '今天')}", is_flag=True)
         self.initialize.info_message(f"{nick} {self.day_summary(tomorrow, '明天')}", is_flag=True)
 
+    def print_coin_total(self, nick: str, data: dict) -> None:
+        """推送账号淘金币总量。"""
+        model = (data or {}).get("model") or {}
+        user = model.get("userInfo") or {}
+        display_nick = user.get("userNick") or nick
+        coin = user.get("coinAmount", "-")
+        self.initialize.info_message(f"{display_nick} 总量，金币 {coin}", is_flag=True)
+
     def print_collect_result(self, nick: str, data: dict) -> None:
         reward = (data or {}).get("signReward") or {}
         total = (data or {}).get("totalCoinReward") or reward.get("coinReward") or "-"
@@ -303,20 +311,32 @@ class TxSign(Base):
             return
         cal_data = calendar.get("data") or {}
         self.print_nearby_sign(nick, cal_data)
-        if self.is_today_signed(cal_data):
-            self.initialize.info_message(f"{nick} 今日已签到，跳过领取接口", is_flag=True)
-            return
-        self.initialize.info_message(f"{nick} 今日未签到，调用领取接口…", is_flag=True)
-        collect = self.collect_reward(cookies)
-        if not self.ret_ok(collect):
-            self.initialize.error_message(f"{nick} 签到领取失败：{self.ret_msg(collect)}", is_flag=True)
-            return
-        self.print_collect_result(nick, collect.get("data") or {})
+
+        already_signed = self.is_today_signed(cal_data)
+        if not already_signed:
+            self.initialize.info_message(f"{nick} 今日未签到，调用领取接口…", is_flag=True)
+            collect = self.collect_reward(cookies)
+            if not self.ret_ok(collect):
+                self.initialize.error_message(
+                    f"{nick} 签到领取失败：{self.ret_msg(collect)}", is_flag=True
+                )
+                return
+            self.print_collect_result(nick, collect.get("data") or {})
+
+        # 推送淘金币总量（已签 / 刚领完都查一次）
         town = self.town_index(cookies)
         if self.ret_ok(town):
-            self.print_town_index(nick, town.get("data") or {})
+            town_data = town.get("data") or {}
+            self.print_coin_total(nick, town_data)
+            if not already_signed:
+                self.print_town_index(nick, town_data)
         else:
-            self.initialize.error_message(f"{nick} 小镇首页失败：{self.ret_msg(town)}", is_flag=True)
+            self.initialize.error_message(
+                f"{nick} 小镇首页失败：{self.ret_msg(town)}", is_flag=True
+            )
+
+        if already_signed:
+            self.initialize.info_message(f"{nick} 今日已签到，跳过领取接口", is_flag=True)
 
 
 if __name__ == "__main__":
