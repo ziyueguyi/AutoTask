@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 # @项目名称 :AutoTask
-# @文件名称 :淘江湖任务.py
+# @文件名称 :tx_jh_task.py
 # @文件介绍 :淘江湖任务（sceneId=8244）
-# 青龙环境变量（前缀 TJH_TASK）：
-#   TJH_TASK_account  Cookie
-#   TJH_TASK_notify   通知开关，填 1 开启
+# 青龙环境变量（前缀 TX_JH_TASK）：
+#   TX_JH_TASK_account  Cookie
+#   TX_JH_TASK_notify   通知开关，填 1 开启
 # 依赖：curl_cffi
 const $ = new Env('淘江湖任务')
 cron: 1 1 1 1 1
@@ -21,7 +21,7 @@ from pathlib import Path
 from curl_cffi import requests
 
 
-class TaoJiangHuTask:
+class TxJhTask:
     APP_KEY = "12574478"
     HOST = "https://h5api.m.taobao.com"
     TASK_API = "mtop.taobao.pentaprism.scene.query"
@@ -35,7 +35,7 @@ class TaoJiangHuTask:
         import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
         import_set_module = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TJH_TASK")
+        self.import_set = import_set_module.ImportSet("TX_JH_TASK")
         self.initialize = self.import_set.import_initialize()
         self.env_name = self.initialize.env_key("account")
         self.session = requests.Session(timeout=20)
@@ -62,7 +62,7 @@ class TaoJiangHuTask:
         return accounts
 
     def run(self) -> None:
-        self.initialize.info_message("淘江湖任务开始")
+        self.initialize.info_message("TX JH Task start")
         accounts = self.load_account_list()
         for index, (account_name, account) in enumerate(accounts, 1):
             self.initialize.info_message(f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}")
@@ -79,8 +79,8 @@ class TaoJiangHuTask:
                 delay = random.uniform(2, 5)
                 self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
                 time.sleep(delay)
-        self.initialize.info_message("淘江湖任务结束")
-        self.initialize.send_notify("淘江湖任务 | https://jianghu.taobao.com/coin.html")
+        self.initialize.info_message("TX JH Task end")
+        self.initialize.send_notify("TX JH Task | https://jianghu.taobao.com/coin.html")
 
     @staticmethod
     def cookies_to_dict(account: dict) -> dict:
@@ -94,7 +94,7 @@ class TaoJiangHuTask:
                     result[key.strip()] = value.strip()
             return result
         if account.get("token") and len(account) == 1:
-            return TaoJiangHuTask.cookies_to_dict({"cookie": account["token"]})
+            return TxJhTask.cookies_to_dict({"cookie": account["token"]})
         return {k: v for k, v in account.items() if v is not None}
 
     @staticmethod
@@ -207,7 +207,7 @@ class TaoJiangHuTask:
         if center.get("processTitle"):
             return str(center["processTitle"])
         for sub in item.get("subList") or []:
-            title = TaoJiangHuTask.task_title(sub)
+            title = TxJhTask.task_title(sub)
             if title and not title.startswith("任务"):
                 return title
         return f"任务{item.get('id', '?')}"
@@ -254,7 +254,7 @@ class TaoJiangHuTask:
             except Exception:
                 pass
         for sub in item.get("subList") or []:
-            url = TaoJiangHuTask.task_url(sub)
+            url = TxJhTask.task_url(sub)
             if url and url != "-":
                 return url
         return "-"
@@ -263,7 +263,7 @@ class TaoJiangHuTask:
         model = (data or {}).get("model") or []
         finish = (data or {}).get("finishCount", "?")
         total = (data or {}).get("totalCount") or len(model)
-        self.initialize.info_message(f"{nick} 淘江湖任务进度：{finish}/{total}", is_flag=True)
+        self.initialize.info_message(f"{nick} JH task progress：{finish}/{total}", is_flag=True)
         for index, item in enumerate(model, 1):
             self.initialize.info_message(
                 f"{nick} [{index}] {self.task_title(item)} | {self.task_status(item)} | "
@@ -319,7 +319,7 @@ class TaoJiangHuTask:
     def do_work(self, nick: str, cookies: dict) -> None:
         tasks = self.query_tasks(cookies)
         if not self.ret_ok(tasks):
-            self.initialize.error_message(f"{nick} 淘江湖任务查询失败：{self.ret_msg(tasks)}", is_flag=True)
+            self.initialize.error_message(f"{nick} JH task query failed：{self.ret_msg(tasks)}", is_flag=True)
             return
         task_data = tasks.get("data") or {}
         self.print_tasks(nick, task_data)

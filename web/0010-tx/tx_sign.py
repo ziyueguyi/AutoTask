@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 # @项目名称 :AutoTask
-# @文件名称 :淘金币签到.py
+# @文件名称 :tx_sign.py
 # @文件介绍 :淘宝淘金币签到（查询 → 未签则领取 → 小镇首页）
-# 青龙环境变量（前缀 TJB_SIGN）：
-#   TJB_SIGN_account  Cookie
-#   TJB_SIGN_notify   通知开关，填 1 开启
+# 青龙环境变量（前缀 TX_SIGN）：
+#   TX_SIGN_account  Cookie
+#   TX_SIGN_notify   通知开关，填 1 开启
 # 依赖：curl_cffi
 const $ = new Env('淘金币签到')
-cron: 0 9 * * * & 15 21 * * *
+cron: 1 1 1 1 1
 """
 import hashlib
 import json
@@ -21,7 +21,7 @@ from pathlib import Path
 from curl_cffi import requests
 
 
-class TaoJinBiSign:
+class TxSign:
     APP_KEY = "12574478"
     HOST = "https://h5api.m.taobao.com"
     CALENDAR_API = "mtop.coingame.sign.calendar.pure.pc"
@@ -37,7 +37,7 @@ class TaoJinBiSign:
         import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
         import_set_module = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TJB_SIGN")
+        self.import_set = import_set_module.ImportSet("TX_SIGN")
         self.initialize = self.import_set.import_initialize()
         self.env_name = self.initialize.env_key("account")
         self.session = requests.Session(timeout=20)
@@ -64,7 +64,7 @@ class TaoJinBiSign:
         return accounts
 
     def run(self) -> None:
-        self.initialize.info_message("淘金币签到开始")
+        self.initialize.info_message("TX Sign start")
         accounts = self.load_account_list()
         for index, (account_name, account) in enumerate(accounts, 1):
             self.initialize.info_message(f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}")
@@ -81,8 +81,8 @@ class TaoJinBiSign:
                 delay = random.uniform(2, 5)
                 self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
                 time.sleep(delay)
-        self.initialize.info_message("淘金币签到结束")
-        self.initialize.send_notify("淘金币签到 | https://huodong.taobao.com/")
+        self.initialize.info_message("TX Sign end")
+        self.initialize.send_notify("TX Sign | https://huodong.taobao.com/")
 
     @staticmethod
     def cookies_to_dict(account: dict) -> dict:
@@ -96,7 +96,7 @@ class TaoJinBiSign:
                     result[key.strip()] = value.strip()
             return result
         if account.get("token") and len(account) == 1:
-            return TaoJinBiSign.cookies_to_dict({"cookie": account["token"]})
+            return TxSign.cookies_to_dict({"cookie": account["token"]})
         return {k: v for k, v in account.items() if v is not None}
 
     @staticmethod
@@ -222,14 +222,14 @@ class TaoJinBiSign:
 
     @staticmethod
     def today_day(data: dict) -> dict | None:
-        for day in TaoJinBiSign.calendar_days(data):
+        for day in TxSign.calendar_days(data):
             if day.get("isToday"):
                 return day
         return None
 
     @staticmethod
     def is_today_signed(data: dict) -> bool:
-        today = TaoJinBiSign.today_day(data)
+        today = TxSign.today_day(data)
         return bool(today and today.get("signed"))
 
     @staticmethod

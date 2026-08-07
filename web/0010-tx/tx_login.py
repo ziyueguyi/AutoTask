@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
 # @项目名称 :AutoTask
-# @文件名称 :淘宝扫码登录.py
+# @文件名称 :tx_login.py
 # @文件介绍 :淘宝 PC 扫码登录，日志打印二维码，确认后回写青龙 Cookie
-# 青龙环境变量（前缀 TB_LOGIN）：
-#   TB_LOGIN_client_id      青龙应用 Client ID（与 secret 同时配置才可上传）
-#   TB_LOGIN_client_secret  青龙应用 Client Secret
-#   TB_LOGIN_ql_url         青龙地址，默认 http://127.0.0.1:5700
-#   TB_LOGIN_target         写入的环境变量名，逗号分隔；默认同步全部淘系 *_account
-#   TB_LOGIN_notify         通知开关，填 1 开启
-#   TB_LOGIN_timeout        等待扫码超时秒数，默认 300
+# 青龙环境变量（前缀 TX_LOGIN）：
+#   TX_LOGIN_client_id      青龙应用 Client ID（与 secret 同时配置才可上传）
+#   TX_LOGIN_client_secret  青龙应用 Client Secret
+#   TX_LOGIN_ql_url         青龙地址，默认 http://127.0.0.1:5700
+#   TX_LOGIN_target         写入的环境变量名，逗号分隔；默认同步全部淘系 *_account
+#   TX_LOGIN_notify         通知开关，填 1 开启
+#   TX_LOGIN_timeout        等待扫码超时秒数，默认 300
 # 依赖：curl_cffi、qrcode、pillow
 const $ = new Env('淘宝扫码登录')
 cron: 1 1 1 1 1
@@ -30,8 +30,8 @@ from curl_cffi import requests
 
 
 DEFAULT_TARGETS = (
-    "TJB_SIGN_account,TJB_TASK_account,TJB_EXCHANGE_account,"
-    "TJH_TASK_account,TJH_EXCHANGE_account"
+    "TX_SIGN_account,TX_TASK_account,TX_EXCHANGE_account,"
+    "TX_JH_TASK_account,TX_JH_EXCHANGE_account"
 )
 IMPORTANT_COOKIE_KEYS = (
     "cookie2",
@@ -58,21 +58,21 @@ IMPORTANT_COOKIE_KEYS = (
 )
 
 
-class TaoBaoQrLogin:
+class TxLogin:
     LOGIN_HOST = "https://login.taobao.com"
     RETURN_URL = "https://www.taobao.com/"
     GENERATE_PATH = "/havanaone/loginLegacy/qrCode/generate.do"
     QUERY_PATH = "/havanaone/loginLegacy/qrCode/query.do"
     LOGIN_PAGE = "/havanaone/login/login.htm"
     POLL_INTERVAL = 10
-    QR_FILENAME = "tb_login_qr.png"
+    QR_FILENAME = "tx_login_qr.png"
 
     def __init__(self) -> None:
         public_path = Path(__file__).resolve().parent.parent.parent / "public"
         import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
         import_set_module = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TB_LOGIN")
+        self.import_set = import_set_module.ImportSet("TX_LOGIN")
         self.initialize = self.import_set.import_initialize()
 
         self.ql_url = (os.getenv(self.initialize.env_key("ql_url")) or "http://127.0.0.1:5700").rstrip("/")
@@ -456,7 +456,7 @@ class TaoBaoQrLogin:
     def upload_cookie(self, cookie_str: str) -> None:
         if not self.can_upload():
             self.initialize.error_message(
-                "未配置 TB_LOGIN_client_id / TB_LOGIN_client_secret，无法上传，仅打印 Cookie"
+                "未配置 TX_LOGIN_client_id / TX_LOGIN_client_secret，无法上传，仅打印 Cookie"
             )
             self.initialize.info_message(cookie_str)
             return
@@ -477,7 +477,7 @@ class TaoBaoQrLogin:
     # ---------- entry ----------
 
     def run(self) -> None:
-        self.initialize.info_message("淘宝扫码登录开始")
+        self.initialize.info_message("TX Login start")
         try:
             self.open_login_page()
             qr = self.generate_qr()
@@ -493,12 +493,12 @@ class TaoBaoQrLogin:
             raise
         finally:
             self.cleanup_qr_image()
-            self.initialize.info_message("淘宝扫码登录结束")
-            self.initialize.send_notify("淘宝扫码登录 | https://login.taobao.com/")
+            self.initialize.info_message("TX Login end")
+            self.initialize.send_notify("TX Login | https://login.taobao.com/")
 
 
 if __name__ == "__main__":
     try:
-        TaoBaoQrLogin().run()
+        TxLogin().run()
     except Exception:
         sys.exit(1)

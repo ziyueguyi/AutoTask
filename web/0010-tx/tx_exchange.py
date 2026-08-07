@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 # @项目名称 :AutoTask
-# @文件名称 :淘金币兑换.py
+# @文件名称 :tx_exchange.py
 # @文件介绍 :淘宝金币换好礼查询（余额校验；兑换动作待抓包）
-# 青龙环境变量（前缀 TJB_EXCHANGE）：
-#   TJB_EXCHANGE_account  Cookie
-#   TJB_EXCHANGE_notify   通知开关，填 1 开启
-#   TJB_EXCHANGE_range    兑换范围（按 reduceCoinAmount），默认 -1
+# 青龙环境变量（前缀 TX_EXCHANGE）：
+#   TX_EXCHANGE_account  Cookie
+#   TX_EXCHANGE_notify   通知开关，填 1 开启
+#   TX_EXCHANGE_range    兑换范围（按 reduceCoinAmount），默认 -1
 #                        -1 / 100-1000 / 100- / -1000
 # 依赖：curl_cffi
 const $ = new Env('淘金币兑换')
@@ -23,7 +23,7 @@ from pathlib import Path
 from curl_cffi import requests
 
 
-class TaoJinBiExchange:
+class TxExchange:
     APP_KEY = "12574478"
     HOST = "https://h5api.m.taobao.com"
     HOME_API = "mtop.taobao.pc.growth.taocoin.queryTaoCoinHomeV2"
@@ -38,7 +38,7 @@ class TaoJinBiExchange:
         import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
         import_set_module = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TJB_EXCHANGE")
+        self.import_set = import_set_module.ImportSet("TX_EXCHANGE")
         self.initialize = self.import_set.import_initialize()
         query_spc = util.spec_from_file_location(
             "query_taocoin",
@@ -74,7 +74,7 @@ class TaoJinBiExchange:
         return accounts
 
     def run(self) -> None:
-        self.initialize.info_message("淘金币兑换开始")
+        self.initialize.info_message("TX Exchange start")
         self.initialize.info_message(f"兑换范围：{self.format_coin_range(self.coin_range)}")
         accounts = self.load_account_list()
         for index, (account_name, account) in enumerate(accounts, 1):
@@ -92,8 +92,8 @@ class TaoJinBiExchange:
                 delay = random.uniform(2, 5)
                 self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
                 time.sleep(delay)
-        self.initialize.info_message("淘金币兑换结束")
-        self.initialize.send_notify("淘金币兑换 | https://huodong.taobao.com/")
+        self.initialize.info_message("TX Exchange end")
+        self.initialize.send_notify("TX Exchange | https://huodong.taobao.com/")
 
     @staticmethod
     def cookies_to_dict(account: dict) -> dict:
@@ -107,7 +107,7 @@ class TaoJinBiExchange:
                     result[key.strip()] = value.strip()
             return result
         if account.get("token") and len(account) == 1:
-            return TaoJinBiExchange.cookies_to_dict({"cookie": account["token"]})
+            return TxExchange.cookies_to_dict({"cookie": account["token"]})
         return {k: v for k, v in account.items() if v is not None}
 
     @staticmethod

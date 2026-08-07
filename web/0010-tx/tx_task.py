@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 # @项目名称 :AutoTask
-# @文件名称 :淘金币任务.py
+# @文件名称 :tx_task.py
 # @文件介绍 :淘宝淘金币任务列表 / 任务推进（query + scene.trigger）
-# 青龙环境变量（前缀 TJB_TASK）：
-#   TJB_TASK_account  Cookie
-#   TJB_TASK_notify   通知开关，填 1 开启
+# 青龙环境变量（前缀 TX_TASK）：
+#   TX_TASK_account  Cookie
+#   TX_TASK_notify   通知开关，填 1 开启
 # 依赖：curl_cffi；任务逻辑见 tools/pentaprism_task.py
 const $ = new Env('淘金币任务')
-cron: 0 9 * * * & 15 21 * * *
+cron: 15 9,21 * * *
 """
 import os
 import random
@@ -19,7 +19,7 @@ from pathlib import Path
 from curl_cffi import requests
 
 
-class TaoJinBiTask:
+class TxTask:
     SCENE_ID = "8676"
     ASAC = "2A24A178YUFG02XVGJNZFM"
     PAGE_URL = "https://huodong.taobao.com/wow/z/tbhome/pc-growth/tao-coin"
@@ -31,7 +31,7 @@ class TaoJinBiTask:
         import_set_spc = util.spec_from_file_location("ImportSet", str(public_path / "ImportSet.py"))
         import_set_module = util.module_from_spec(import_set_spc)
         import_set_spc.loader.exec_module(import_set_module)
-        self.import_set = import_set_module.ImportSet("TJB_TASK")
+        self.import_set = import_set_module.ImportSet("TX_TASK")
         self.initialize = self.import_set.import_initialize()
         self.env_name = self.initialize.env_key("account")
 
@@ -66,7 +66,7 @@ class TaoJinBiTask:
         return accounts
 
     def run(self) -> None:
-        self.initialize.info_message("淘金币任务开始")
+        self.initialize.info_message("TX Task start")
         accounts = self.load_account_list()
         for index, (account_name, account) in enumerate(accounts, 1):
             self.initialize.info_message(f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}")
@@ -83,8 +83,8 @@ class TaoJinBiTask:
                 delay = random.uniform(2, 5)
                 self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
                 time.sleep(delay)
-        self.initialize.info_message("淘金币任务结束")
-        self.initialize.send_notify("淘金币任务 | https://huodong.taobao.com/")
+        self.initialize.info_message("TX Task end")
+        self.initialize.send_notify("TX Task | https://huodong.taobao.com/")
 
     @staticmethod
     def cookies_to_dict(account: dict) -> dict:
@@ -98,7 +98,7 @@ class TaoJinBiTask:
                     result[key.strip()] = value.strip()
             return result
         if account.get("token") and len(account) == 1:
-            return TaoJinBiTask.cookies_to_dict({"cookie": account["token"]})
+            return TxTask.cookies_to_dict({"cookie": account["token"]})
         return {k: v for k, v in account.items() if v is not None}
 
     def query_tasks(self, cookies: dict) -> dict:
