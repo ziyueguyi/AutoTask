@@ -25,7 +25,7 @@ import time
 from importlib import util
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote, urlparse
 
 from curl_cffi import requests
 
@@ -33,6 +33,8 @@ from curl_cffi import requests
 DEFAULT_TARGETS = "TX_account"
 IMPORTANT_COOKIE_KEYS = (
     "cookie2",
+    "cookie1",
+    "cookie17",
     "_tb_token_",
     "t",
     "_m_h5_tk",
@@ -43,6 +45,7 @@ IMPORTANT_COOKIE_KEYS = (
     "lgc",
     "_nk_",
     "dnk",
+    "lid",
     "cna",
     "isg",
     "tfstk",
@@ -53,6 +56,12 @@ IMPORTANT_COOKIE_KEYS = (
     "mt",
     "xlly_s",
     "_samesite_flag_",
+    "sg",
+    "csg",
+    "skt",
+    "uc1",
+    "uc3",
+    "uc4",
 )
 
 
@@ -146,7 +155,20 @@ class TxLogin:
     @staticmethod
     def cookies_to_str(cookies: dict[str, str], keys: tuple[str, ...] | None = None) -> str:
         if keys:
-            items = [(k, cookies[k]) for k in keys if cookies.get(k)]
+            seen: set[str] = set()
+            items: list[tuple[str, str]] = []
+            for k in keys:
+                if cookies.get(k) and k not in seen:
+                    items.append((k, cookies[k]))
+                    seen.add(k)
+            for k, v in cookies.items():
+                if k in seen or v is None or str(v) == "":
+                    continue
+                # 跳过明显非业务字段
+                if k.lower().startswith(("aria", "xsrf", "arms_")):
+                    continue
+                items.append((k, str(v)))
+                seen.add(k)
         else:
             items = [(k, v) for k, v in cookies.items() if v is not None and str(v) != ""]
         return "; ".join(f"{k}={v}" for k, v in items)
@@ -164,7 +186,7 @@ class TxLogin:
     @classmethod
     def account_id(cls, cookie_str: str) -> str:
         jar = cls.parse_cookie_str(cookie_str)
-        for key in ("unb", "tracknick", "lgc", "_nk_", "dnk"):
+        for key in ("unb", "tracknick", "lgc", "_nk_", "dnk", "lid"):
             val = (jar.get(key) or "").strip()
             if val:
                 return unquote(val)
@@ -176,8 +198,242 @@ class TxLogin:
             for cookie in self.session.cookies.jar:
                 jar[cookie.name] = cookie.value
         except Exception:
-            jar.update({k: str(v) for k, v in dict(self.session.cookies).items()})
+            try:
+                jar.update({k: str(v) for k, v in dict(self.session.cookies).items()})
+            except Exception:
+                pass
         return jar
+
+    def apply_cookies(self, cookies: dict[str, str]) -> None:
+        for name, value in cookies.items():
+            if not name or value is None:
+                continue
+            value = str(value)
+            for domain in (".taobao.com", ".tmall.com", "login.taobao.com", "h5api.m.taobao.com"):
+                try:
+                    self.session.cookies.set(name, value, domain=domain)
+                except Exception:
+                    try:
+                        self.session.cookies.set(name, value)
+                    except Exception:
+                        pass
+
+    @classmethod
+    def cookies_from_async_url(cls, url: str) -> dict[str, str]:
+        """pass.tmall.com/add 等链接把登录 Cookie 放在 query 里。"""
+        query = parse_qs(urlparse(str(url)).query, keep_blank_values=True)
+        result: dict[str, str] = {}
+        skip = {
+            "target", "login", "tmsc", "opi", "pacc", "_l_g_", "cancelledSubSites",
+        }
+        for key, values in query.items():
+            if not values or key in skip:
+                continue
+            result[key] = values[0]
+        # uc1=pas=0;cookie14=... 需拆开
+        uc1 = result.get("uc1") or ""
+        if ";" in uc1 and "=" in uc1:
+            for part in uc1.split(";"):
+                part = part.strip()
+                if "=" in part:
+                    k, v = part.split("=", 1)
+                    result.setdefault(k.strip(), v.strip())
+        return result
+
+    @staticmethod
+    def _split_set_cookie_header(raw: str) -> list[str]:
+        """把可能被合并的 Set-Cookie 拆成单条（Expires 含逗号，不能简单 split(',')）。"""
+        text = str(raw or "").strip()
+        if not text:
+            return []
+        # 下一条 cookie 通常形如 ", name=value"
+        return [p.strip() for p in re.split(r",(?=\s*[^;,=\s]+=)", text) if p.strip()]
+
+    @classmethod
+    def cookies_from_set_cookie_values(cls, raw_list: list) -> dict[str, str]:
+        jar: dict[str, str] = {}
+        for item in raw_list:
+            for piece in cls._split_set_cookie_header(str(item)):
+                part = piece.split(";", 1)[0].strip()
+                if "=" not in part:
+                    continue
+                k, v = part.split("=", 1)
+                name = k.strip()
+                # 跳过删除型空值（如 sn=）
+                if not name:
+                    continue
+                jar[name] = v.strip()
+        return jar
+
+    @classmethod
+    def cookies_from_response(cls, resp) -> dict[str, str]:
+        jar: dict[str, str] = {}
+        try:
+            for name, value in dict(resp.cookies).items():
+                jar[str(name)] = str(value)
+        except Exception:
+            pass
+
+        headers = getattr(resp, "headers", None) or {}
+        raw_list: list = []
+        for getter in ("get_list", "getlist", "get_all"):
+            if hasattr(headers, getter):
+                try:
+                    raw_list = getattr(headers, getter)("set-cookie") or getattr(headers, getter)("Set-Cookie") or []
+                except Exception:
+                    raw_list = []
+                if raw_list:
+                    break
+        if not raw_list:
+            # curl_cffi / httpx 有时把多条塞进一个字符串
+            single = None
+            try:
+                single = headers.get("set-cookie") or headers.get("Set-Cookie")
+            except Exception:
+                single = None
+            if single:
+                raw_list = [single] if isinstance(single, str) else list(single)
+
+        jar.update(cls.cookies_from_set_cookie_values(raw_list))
+
+        # 跟随重定向链上的 Set-Cookie
+        try:
+            for hist in getattr(resp, "history", None) or []:
+                jar.update(cls.cookies_from_response(hist))
+        except Exception:
+            pass
+        return jar
+
+    def ingest_response_cookies(self, resp) -> dict[str, str]:
+        got = self.cookies_from_response(resp)
+        if got:
+            self.apply_cookies(got)
+        return got
+
+    def refresh_m_h5_tk(self, base: dict[str, str] | None = None) -> dict[str, str]:
+        """访问 h5api 触发下发 _m_h5_tk / _m_h5_tk_enc。"""
+        got: dict[str, str] = {}
+        jar = dict(base or self.session_cookie_dict())
+        cookie_header = self.cookies_to_str(jar)
+        headers = {
+            "referer": "https://www.taobao.com/",
+            "accept": "*/*",
+            "origin": "https://www.taobao.com",
+        }
+        if cookie_header:
+            headers["cookie"] = cookie_header
+
+        # 淘宝首页会打的 recommend 接口，无有效 sign 也会下发 _m_h5_tk
+        ts = str(int(time.time() * 1000))
+        recommend_data = (
+            '{"appId":"43908","params":"{\\"referer\\":\\"pc_taobao\\",'
+            '\\"hng\\":\\"\\",\\"fromSource\\":\\"wotao\\"}"}'
+        )
+        endpoints = [
+            (
+                "https://h5api.m.taobao.com/h5/mtop.relationrecommend.wirelessrecommend.recommend/2.0/",
+                {
+                    "jsv": "2.7.2",
+                    "appKey": "12574478",
+                    "t": ts,
+                    "sign": "0",
+                    "api": "mtop.relationrecommend.WirelessRecommend.recommend",
+                    "v": "2.0",
+                    "timeout": "10000",
+                    "type": "jsonp",
+                    "dataType": "jsonp",
+                    "callback": "mtopjsonp1",
+                    "data": recommend_data,
+                },
+            ),
+            (
+                "https://h5api.m.taobao.com/h5/mtop.common.getTimestamp/1.0/",
+                {
+                    "jsv": "2.6.1",
+                    "appKey": "12574478",
+                    "t": str(int(time.time() * 1000)),
+                    "api": "mtop.common.getTimestamp",
+                    "v": "1.0",
+                    "type": "json",
+                    "dataType": "json",
+                    "data": "{}",
+                },
+            ),
+            ("https://www.taobao.com/", None),
+        ]
+        for url, params in endpoints:
+            try:
+                if params is None:
+                    resp = self.session.get(url, headers=headers, allow_redirects=True)
+                else:
+                    resp = self.session.get(url, params=params, headers=headers, allow_redirects=True)
+                got.update(self.ingest_response_cookies(resp))
+                if got.get("_m_h5_tk"):
+                    self.initialize.info_message(
+                        f"已获取 _m_h5_tk（via {urlparse(url).path}）"
+                    )
+            except Exception as exc:
+                self.initialize.error_message(f"刷新 h5 token 失败 {url}: {exc}")
+            got.update(self.session_cookie_dict())
+            if got.get("_m_h5_tk") and got.get("_m_h5_tk_enc"):
+                break
+            cookie_header = self.cookies_to_str({**jar, **got})
+            if cookie_header:
+                headers["cookie"] = cookie_header
+        return got
+
+    def collect_cookies(self, confirmed: dict[str, Any], confirmed_cookies: dict[str, str] | None = None) -> str:
+        jar: dict[str, str] = self.session_cookie_dict()
+        if confirmed_cookies:
+            jar.update(confirmed_cookies)
+            self.apply_cookies(confirmed_cookies)
+            self.initialize.info_message(
+                f"CONFIRMED Set-Cookie 字段: {sorted(confirmed_cookies.keys())}"
+            )
+
+        async_urls = list(confirmed.get("asyncUrls") or [])
+        self.initialize.info_message(f"asyncUrls 数量: {len(async_urls)}")
+
+        # 1) 从 asyncUrls 的 query 抽取登录 Cookie（关键字段都在这里）
+        for url in async_urls:
+            extracted = self.cookies_from_async_url(str(url))
+            if extracted:
+                jar.update(extracted)
+                self.apply_cookies(extracted)
+                self.initialize.info_message(
+                    f"从 asyncUrl 解析到 Cookie 字段: {sorted(extracted.keys())}"
+                )
+            try:
+                resp = self.session.get(str(url), allow_redirects=True)
+                jar.update(self.ingest_response_cookies(resp))
+            except Exception as exc:
+                self.initialize.error_message(f"同步站点 Cookie 失败: {exc}")
+
+        # 2) 跳转回淘宝
+        redirect = confirmed.get("redirectUrl") or confirmed.get("returnUrl") or self.RETURN_URL
+        try:
+            resp = self.session.get(str(redirect), allow_redirects=True)
+            jar.update(self.ingest_response_cookies(resp))
+        except Exception as exc:
+            self.initialize.error_message(f"访问跳转页失败: {exc}")
+
+        jar.update(self.session_cookie_dict())
+        self.apply_cookies(jar)
+
+        # 3) 专门拉取 _m_h5_tk（扫码响应本身不下发该字段）
+        jar.update(self.refresh_m_h5_tk(jar))
+        jar.update(self.session_cookie_dict())
+
+        cookie_str = self.cookies_to_str(jar, IMPORTANT_COOKIE_KEYS)
+        keys = list(self.parse_cookie_str(cookie_str).keys())
+        self.initialize.info_message(f"最终 Cookie 字段({len(keys)}): {keys}")
+        if "cookie2" not in jar:
+            raise RuntimeError("登录后未拿到 cookie2，Cookie 不完整")
+        if not jar.get("_m_h5_tk"):
+            self.initialize.error_message(
+                "未拿到 _m_h5_tk，mtop 接口可能不可用；已写入现有 Cookie，可稍后重试登录或手动补全"
+            )
+        return cookie_str
 
     def log_qr(self, content: str) -> None:
         self.initialize.info_message("请使用淘宝 App 扫描下方二维码（或打开本地图片）")
@@ -322,7 +578,7 @@ class TxLogin:
             raise RuntimeError(f"生成二维码失败: {payload}")
         return data
 
-    def query_qr(self, t: Any, ck: str) -> dict[str, Any]:
+    def query_qr(self, t: Any, ck: str) -> tuple[dict[str, Any], dict[str, str]]:
         body = {
             "t": str(t),
             "ck": ck,
@@ -355,13 +611,16 @@ class TxLogin:
             headers=headers,
         )
         resp.raise_for_status()
+        # CONFIRMED 时会下发大量 Set-Cookie（unb/sgcookie/tracknick 等），
+        # curl_cffi 会话 jar 常丢 SameSite=None，必须手动解析
+        got = self.ingest_response_cookies(resp)
         payload = resp.json()
         data = ((payload.get("content") or {}).get("data") or {})
         if payload.get("hasError"):
             raise RuntimeError(f"查询扫码状态失败: {payload}")
-        return data
+        return data, got
 
-    def wait_confirmed(self, t: Any, ck: str) -> dict[str, Any]:
+    def wait_confirmed(self, t: Any, ck: str) -> tuple[dict[str, Any], dict[str, str]]:
         deadline = time.time() + self.timeout
         round_no = 0
         self.initialize.info_message(
@@ -370,7 +629,7 @@ class TxLogin:
         while time.time() < deadline:
             round_no += 1
             remain = max(0, int(deadline - time.time()))
-            data = self.query_qr(t, ck)
+            data, got = self.query_qr(t, ck)
             status = str(data.get("qrCodeStatus") or "")
             msg = data.get("titleMsg") or status or "未知状态"
             self.initialize.info_message(
@@ -383,43 +642,13 @@ class TxLogin:
                     f"扫码确认成功（loginResult={login_result}）",
                     is_flag=True,
                 )
-                return data
+                return data, got
             if status == "EXPIRED":
                 raise TimeoutError(f"二维码超时（EXPIRED）：{msg}")
             if status in {"CANCELED", "CANCELLED", "TIMEOUT"}:
                 raise RuntimeError(f"扫码已取消或超时: {status}（{msg}）")
             time.sleep(self.POLL_INTERVAL)
         raise TimeoutError(f"等待扫码超时（{self.timeout}s）")
-
-    def collect_cookies(self, confirmed: dict[str, Any]) -> str:
-        for url in confirmed.get("asyncUrls") or []:
-            try:
-                self.session.get(str(url), allow_redirects=True)
-            except Exception as exc:
-                self.initialize.error_message(f"同步站点 Cookie 失败: {exc}")
-
-        redirect = confirmed.get("redirectUrl") or confirmed.get("returnUrl") or self.RETURN_URL
-        try:
-            self.session.get(str(redirect), allow_redirects=True)
-        except Exception as exc:
-            self.initialize.error_message(f"访问跳转页失败: {exc}")
-
-        # 触发 h5 token
-        try:
-            self.session.get(
-                "https://h5api.m.taobao.com/h5/mtop.user.getusersimple/1.0/",
-                params={"jsv": "2.6.1", "appKey": "12574478", "t": str(int(time.time() * 1000)), "data": "{}"},
-                headers={"referer": "https://www.taobao.com/"},
-                allow_redirects=True,
-            )
-        except Exception:
-            pass
-
-        jar = self.session_cookie_dict()
-        cookie_str = self.cookies_to_str(jar, IMPORTANT_COOKIE_KEYS)
-        if "cookie2" not in jar:
-            raise RuntimeError("登录后未拿到 cookie2，Cookie 不完整")
-        return cookie_str
 
     # ---------- qinglong ----------
 
@@ -574,13 +803,10 @@ class TxLogin:
             self.open_login_page()
             qr = self.generate_qr()
             self.log_qr(str(qr["codeContent"]))
-            confirmed = self.wait_confirmed(qr["t"], qr["ck"])
+            confirmed, confirmed_cookies = self.wait_confirmed(qr["t"], qr["ck"])
             self.initialize.info_message("扫码确认成功，正在收集 Cookie", is_flag=True)
-            cookie_str = self.collect_cookies(confirmed)
+            cookie_str = self.collect_cookies(confirmed, confirmed_cookies)
             nick = self.account_id(cookie_str) or "未知"
-            if nick == "未知":
-                keys = list(self.parse_cookie_str(cookie_str).keys())
-                self.initialize.info_message(f"Cookie 字段: {keys}")
             self.initialize.info_message(f"登录账号: {nick}", is_flag=True)
             self.upload_cookie(cookie_str)
         except Exception as exc:
