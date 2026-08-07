@@ -1,0 +1,26 @@
+README.md
+  h_756b7de6229b75 230,238-243
+web/0010——淘系/淘宝扫码登录.py
+  h_756b7de6229b75 15
+web/0010——淘系/淘江湖任务.py
+  h_756b7de6229b75 11
+web/0010——淘系/淘江湖兑换.py
+  h_756b7de6229b75 13
+web/0010——淘系/淘金币任务.py
+  h_756b7de6229b75 11
+web/0010——淘系/淘金币兑换.py
+  h_756b7de6229b75 13
+web/0010——淘系/淘金币签到.py
+  h_756b7de6229b75 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "31d5daf745bc54cba3ae07607fcfb59f1e607ec1",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
