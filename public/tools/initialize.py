@@ -92,14 +92,22 @@ class ImportSet:
         """
         self.message_list.append(message_content)
 
-    def send_notify(self, title):
+    def send_notify(self, title, notify_feature=None):
         """
-        发送通知。开关读取青龙变量 {prefix}_notify。
+        发送通知。默认开关 {prefix}_notify。
+        若传入 notify_feature（如 sign_notify），且该变量已配置，则优先用 {prefix}_{notify_feature}，
+        否则回退到 {prefix}_notify（便于多脚本共用 Cookie、通知可共用或分脚本）。
 
         :param title:
+        :param notify_feature: 可选，如 "sign_notify" / "task_notify"
         :return:
         """
         config_name = self.env_key("notify")
+        if notify_feature:
+            specific = self.env_key(str(notify_feature).strip())
+            specific_val = os.getenv(specific)
+            if specific_val is not None and str(specific_val).strip() != "":
+                config_name = specific
         msg = '\n'.join(self.message_list)
         self.notify.Notify().send(
             f"【{title}】",
