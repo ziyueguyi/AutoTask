@@ -1,0 +1,19 @@
+web/0010-tx/tx_login.py
+  s_6b8fc962ff3e09::t_2d62a0dacab55a 28,36-37,48,59-64,158-171,189,201-304,307-437,581,614-616,621,623,632,645,806,808
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "0b041a00f2d0fd965b17e97ce1e2ba9630a106f6",
+  "prompts": {},
+  "sessions": {
+    "s_6b8fc962ff3e09": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c093885d-b318-45e7-b385-34b0d8235236",
+        "model": "auto-smart"
+      },
+      "human_author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
