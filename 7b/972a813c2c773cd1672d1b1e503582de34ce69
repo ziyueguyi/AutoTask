@@ -1,0 +1,18 @@
+public/tools/qinglong.py
+  h_756b7de6229b75 144-158
+web/0010-tx/tools/check_cookie.py
+  h_756b7de6229b75 1-208
+web/0010-tx/tx_check.py
+  h_756b7de6229b75 1-242
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "7b972a813c2c773cd1672d1b1e503582de34ce69",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
