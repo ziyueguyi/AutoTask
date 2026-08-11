@@ -379,9 +379,6 @@ class TxSign(Base):
         notify_title = "TX Sign | https://huodong.taobao.com/"
         self.initialize.info_message(f"{task_name} start")
         accounts = self.initialize.load_accounts()
-        accounts = [['1', {
-            "cookie": 'cookie2=1538f7460d3f45ecadc33da314b4eea9; cookie1=B0T9XTQP2TcAnMHnYYt2k%2FwqOaAotOhP9dm1aF5Psiw%3D; cookie17=UNDVcqcRQ%2FLnOQ%3D%3D; _tb_token_=ee56b685335e7; t=c6422ee228980ca164186be785af3d4b; unb=3010046509; sgcookie=E1008DRx8ltTcXRthvwHK1D9zZlkVLXjLxAR2Pfz8lsLpkl%2BDfIev9CmKY8G2rQJnUA1Kuitx%2FK6oU1%2B81nF0EEUVUWLycMDxQEmbvljIzmnHtE%3D; tracknick=t_1483190610039_0170; lgc=t_1483190610039_0170; _nk_=t_1483190610039_0170; dnk=t_1483190610039_0170; lid=t_1483190610039_0170; wk_cookie2=18daf363c16d38d0134d19aa44a09451; wk_unb=UNDVcqcRQ%2FLnOQ%3D%3D; _samesite_flag_=true; sg=09c; csg=1fd7afee; skt=43b3c877d5095486; uc1=cookie15=UIHiLt3xD8xYTw%3D%3D&cookie21=VT5L2FSpccLuJBreK%2BBd&pas=0&cookie16=VFC%2FuZ9az08KUQ56dCrZDlbNdA%3D%3D&cookie14=UoYWO62Zcxqb0w%3D%3D&existShop=false; uc3=nk2=F6k3HMo5RnJf7ORDMubwTbitK8o%3D&vt3=F8dD1NmgYiKWtjrWilo%3D&lg2=VFC%2FuZ9ayeYq2g%3D%3D&id2=UNDVcqcRQ%2FLnOQ%3D%3D; uc4=id4=0%40UgclH%2FhPC5Kc6dodqcdUlaKdCIF5&nk4=0%40FbMocpyJnB1QpL0l5A6NPnnFHWBIsftr07UEzsqKAA%3D%3D; ultraCookieBase=1k6S45BQHSQGX1XNsFFAFTuw5EVYGOR9rmHm02fMNvzLf%2B4Kg%2FsRAnCMpa3NiM%2BUKvS%2FFZYELJX2C%2FrumHMw0Uwdm2AMppAvtTY0HTn%2BwsvlMtAGNs%2B7rUOzkJVoeScnwGddvdtbMH1aw7HUGT%2FvT8Zk0iTOPo91z%2B5A1jZZAdW60l35AnKbVUeBnPyhR7G0WmjnAQrrntYIOXyiom0GcQAoVsqq%2FFEEKvjrY1p5Xfggsgkaw4%2FnEp9tB7RFpbeGE1NMJdvIWLDQfcVn23bPdB7beC1M%3D; cancelledSubSites=empty; existShop=MTc4NjQxNzgzOQ%3D%3D; _cc_=Vq8l%2BKCLiw%3D%3D; _l_g_=Ug%3D%3D; lc=Vv6a2bc%2BOH%2FPn3qNw1VX4gtTaaw1z9Wa0A%3D%3D; 3PcFlag=1786417808688; mtop_partitioned_detect=1'}]]
-
         if not accounts:
             env_name = self.initialize.env_key("account")
             self.initialize.error_message(
