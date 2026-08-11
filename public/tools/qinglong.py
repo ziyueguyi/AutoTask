@@ -141,6 +141,21 @@ class QingLongAPI:
         if data.get("code") != 200:
             raise RuntimeError(f"启用环境变量失败: {data}")
 
+    def disable_env(self, env: dict[str, Any]) -> None:
+        """禁用环境变量（status=1 表示已禁用）。"""
+        if int(env.get("status") or 0) == 1:
+            return
+        self.get_token()
+        resp = self.session.put(
+            f"{self.base_url}/open/envs/disable",
+            headers=self._auth_headers(),
+            json=[env["id"]],
+            timeout=self.timeout,
+        )
+        data = resp.json()
+        if data.get("code") != 200:
+            raise RuntimeError(f"禁用环境变量失败: {data}")
+
     def update_env(
         self,
         env: dict[str, Any],
