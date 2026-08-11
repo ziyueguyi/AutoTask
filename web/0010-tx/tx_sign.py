@@ -208,48 +208,59 @@ class TxSign(Base):
         }
         return self.mtop_get(api, data, extra_params, )
 
+    def session_cookie_header(self) -> str:
+        """拼成 Cookie 请求头（淘宝 mtop 用 header 比 cookies= 更稳）。"""
+        return "; ".join(
+            f"{k}={v}" for k, v in self.session_cookie_dict().items() if v is not None and str(v) != ""
+        )
+
     def query_user_taocoin(self) -> None:
         """
-        查询淘金币余额。
-        API: mtop.taobao.pc.growth.taocoin.queryUserTaoCoin
-        令牌过期时会自动吃下发的 _m_h5_tk 并重试一次。
+        拉取/刷新 _m_h5_tk（令牌过期时下发新 token）。
+        Cookie 必须走 headers['cookie']，不要用 cookies=get_dict()。
         """
-        url = 'https://h5api.m.taobao.com/h5/mtop.taobao.pc.growth.taocoin.queryusertaocoin/1.0/'
+        url = "https://h5api.m.taobao.com/h5/mtop.taobao.pc.growth.taocoin.queryusertaocoin/1.0/"
         params = {
-            'jsv': '2.5.1',
-            'appKey': '12574478',
-            # 't': '1786096570093',
-            # 'sign': 'de013951ba1ec163e9c42abad0ef5c61',
-            'v': '1.0',
-            'timeout': '5000',
-            'dataType': 'jsonp',
-            'valueType': 'original',
-            'jsonpIncPrefix': 'tbbe',
-            'api': 'mtop.taobao.pc.growth.taocoin.queryUserTaoCoin',
-            'type': 'originaljsonp',
-            'callback': 'mtopjsonptbbe1',
-            'data': '{}',
-            'bx-ua': 'fast-load',
+            "jsv": "2.5.1",
+            "appKey": "12574478",
+            "v": "1.0",
+            "timeout": "5000",
+            "dataType": "jsonp",
+            "valueType": "original",
+            "jsonpIncPrefix": "tbbe",
+            "api": "mtop.taobao.pc.growth.taocoin.queryUserTaoCoin",
+            "type": "originaljsonp",
+            "callback": "mtopjsonptbbe1",
+            "data": "{}",
+            "bx-ua": "fast-load",
         }
-
         headers = {
-            'accept': '*/*',
-            'accept-language': 'zh,zh-CN;q=0.9',
-            'cache-control': 'no-cache',
-            'pragma': 'no-cache',
-            'referer': 'https://jianghu.taobao.com/coin.html',
-            'sec-ch-ua': '"Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'script',
-            'sec-fetch-mode': 'no-cors',
-            'sec-fetch-site': 'same-site',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
-            # 'cookie': 'cookie2=13d5ad1b67c92b3f1a6d85f41c777b37; cookie1=B0T9XTQP2TcAnMHnYYt2k%2FwqOaAotOhP9dm1aF5Psiw%3D; cookie17=UNDVcqcRQ%2FLnOQ%3D%3D; _tb_token_=eee68a5751535; t=a663acb9dbec295c1b3b43ccc45e441e; _m_h5_tk=33f20dedd34150caaa507a913d7105b9_1786094304554; _m_h5_tk_enc=9e0e726aa946ce5ddefaba07a0fa19d4; unb=3010046509; sgcookie=E100vZ8Pv1BEeAbNRZeFowPSnYGPO09S1M6%2FUzxmHJWju0GdKJ5ftv686%2FduRI6kDyQNK5ujmrtFVxj%2FpogslBssh6Id9fHq7D4%2FNwqhGsZrDv0%3D; tracknick=t_1483190610039_0170; lgc=t_1483190610039_0170; _nk_=t_1483190610039_0170; dnk=t_1483190610039_0170; lid=t_1483190610039_0170; wk_cookie2=1903d63a933b8f3c2c07f3929e7b397c; wk_unb=UNDVcqcRQ%2FLnOQ%3D%3D; _samesite_flag_=true; sg=09c; csg=aa306396; skt=352205af34f4a04d; uc1=cookie21=Vq8l%2BKCLjhS4UhJVbhgU&cookie14=UoYWO6nv1ICLKQ%3D%3D&existShop=false&cookie15=UIHiLt3xD8xYTw%3D%3D&cookie16=UIHiLt3xCS3yM2h4eKHS9lpEOw%3D%3D&pas=0; uc3=vt3=F8dD1NjO9f2gtb4o29M%3D&lg2=WqG3DMC9VAQiUQ%3D%3D&nk2=F6k3HMo5RnJf7ORDMubwTbitK8o%3D&id2=UNDVcqcRQ%2FLnOQ%3D%3D; uc4=nk4=0%40FbMocpyJnB1QpL0l5A6NPnnFHWBIsftr07GVYb15IQ%3D%3D&id4=0%40UgclH%2FhPC5Kc6dodqcdUkQdHcsg9; ultraCookieBase=1k6S45BQHSQGX1XNsFFAFTuw5EVYGOR9rmHm02fMNvzLf%2B4Kg%2FsRAnCMpa3NiM%2BUKvS%2FFZYELJX2C%2FrumHMkN%2FM8V9mAVO6nzctb5MnnnLulBHRj2JBVf3xHcsnDreJNscMhVaaoIH6vjk26Q2JqE%2FUmLza4k%2Fjoj7X0v9uE7iNUtySdX2gkyCTrVJYHTHHRAxS2qu%2BJoasGdjRpddSlu7DtPF%2BDjqFqsdl%2BnrYfjZdptWP7rj1A50NDjKxVAspph6dN4b93lIpII3pNuolu6Zwpuh8U%3D; cancelledSubSites=empty; existShop=MTc4NjA4NTY2NA%3D%3D; _cc_=V32FPkk%2Fhw%3D%3D; _l_g_=Ug%3D%3D; lc=Vv6a3V4cwr4Ingn7PP8s60g6IyaMDJznrw%3D%3D; 3PcFlag=1786085653899; mtop_partitioned_detect=1',
+            "accept": "*/*",
+            "accept-language": "zh,zh-CN;q=0.9",
+            "cache-control": "no-cache",
+            "pragma": "no-cache",
+            "referer": "https://jianghu.taobao.com/coin.html",
+            "sec-ch-ua": '"Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "script",
+            "sec-fetch-mode": "no-cors",
+            "sec-fetch-site": "same-site",
+            "user-agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+            ),
+            "cookie": self.session_cookie_header(),
         }
-        response = requests.get(url, params=params, headers=headers, cookies=self.session.cookies.get_dict())
-        if response.cookies.get('_m_h5_tk'):
-            self.session.cookies.update(response.cookies)
+        response = requests.get(url, params=params, headers=headers, timeout=20)
+        new_tk = response.cookies.get("_m_h5_tk")
+        new_enc = response.cookies.get("_m_h5_tk_enc")
+        if new_tk:
+            self.apply_cookies({
+                **self.session_cookie_dict(),
+                "_m_h5_tk": new_tk,
+                **({"_m_h5_tk_enc": new_enc} if new_enc else {}),
+            })
             self.initialize.info_message("_m_h5_tk重置成功")
         else:
             self.initialize.error_message("_m_h5_tk重置失败")
@@ -368,6 +379,8 @@ class TxSign(Base):
         notify_title = "TX Sign | https://huodong.taobao.com/"
         self.initialize.info_message(f"{task_name} start")
         accounts = self.initialize.load_accounts()
+        accounts = [['1', {
+            "cookie": 'cookie2=1538f7460d3f45ecadc33da314b4eea9; cookie1=B0T9XTQP2TcAnMHnYYt2k%2FwqOaAotOhP9dm1aF5Psiw%3D; cookie17=UNDVcqcRQ%2FLnOQ%3D%3D; _tb_token_=ee56b685335e7; t=c6422ee228980ca164186be785af3d4b; unb=3010046509; sgcookie=E1008DRx8ltTcXRthvwHK1D9zZlkVLXjLxAR2Pfz8lsLpkl%2BDfIev9CmKY8G2rQJnUA1Kuitx%2FK6oU1%2B81nF0EEUVUWLycMDxQEmbvljIzmnHtE%3D; tracknick=t_1483190610039_0170; lgc=t_1483190610039_0170; _nk_=t_1483190610039_0170; dnk=t_1483190610039_0170; lid=t_1483190610039_0170; wk_cookie2=18daf363c16d38d0134d19aa44a09451; wk_unb=UNDVcqcRQ%2FLnOQ%3D%3D; _samesite_flag_=true; sg=09c; csg=1fd7afee; skt=43b3c877d5095486; uc1=cookie15=UIHiLt3xD8xYTw%3D%3D&cookie21=VT5L2FSpccLuJBreK%2BBd&pas=0&cookie16=VFC%2FuZ9az08KUQ56dCrZDlbNdA%3D%3D&cookie14=UoYWO62Zcxqb0w%3D%3D&existShop=false; uc3=nk2=F6k3HMo5RnJf7ORDMubwTbitK8o%3D&vt3=F8dD1NmgYiKWtjrWilo%3D&lg2=VFC%2FuZ9ayeYq2g%3D%3D&id2=UNDVcqcRQ%2FLnOQ%3D%3D; uc4=id4=0%40UgclH%2FhPC5Kc6dodqcdUlaKdCIF5&nk4=0%40FbMocpyJnB1QpL0l5A6NPnnFHWBIsftr07UEzsqKAA%3D%3D; ultraCookieBase=1k6S45BQHSQGX1XNsFFAFTuw5EVYGOR9rmHm02fMNvzLf%2B4Kg%2FsRAnCMpa3NiM%2BUKvS%2FFZYELJX2C%2FrumHMw0Uwdm2AMppAvtTY0HTn%2BwsvlMtAGNs%2B7rUOzkJVoeScnwGddvdtbMH1aw7HUGT%2FvT8Zk0iTOPo91z%2B5A1jZZAdW60l35AnKbVUeBnPyhR7G0WmjnAQrrntYIOXyiom0GcQAoVsqq%2FFEEKvjrY1p5Xfggsgkaw4%2FnEp9tB7RFpbeGE1NMJdvIWLDQfcVn23bPdB7beC1M%3D; cancelledSubSites=empty; existShop=MTc4NjQxNzgzOQ%3D%3D; _cc_=Vq8l%2BKCLiw%3D%3D; _l_g_=Ug%3D%3D; lc=Vv6a2bc%2BOH%2FPn3qNw1VX4gtTaaw1z9Wa0A%3D%3D; 3PcFlag=1786417808688; mtop_partitioned_detect=1'}]]
 
         if not accounts:
             env_name = self.initialize.env_key("account")
