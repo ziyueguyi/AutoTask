@@ -178,8 +178,7 @@ class TxCheck(Base):
             show = result.get("nick") or nick
             uid = result.get("user_num_id")
             self.initialize.info_message(
-                f"{show} Cookie 有效（userNumId={uid}）",
-                is_flag=True,
+                f"{show} Cookie 有效（userNumId={uid}）"
             )
             return True
 
@@ -230,12 +229,11 @@ class TxCheck(Base):
                 delay = random.uniform(1.0, 3.0)
                 time.sleep(delay)
 
-        self.initialize.info_message(
-            f"检测结束：有效 {ok_n}，失效 {bad_n}",
-            is_flag=True,
-        )
+        summary = f"检测结束：有效 {ok_n}，失效 {bad_n}"
+        self.initialize.info_message(summary, is_flag=bad_n > 0)
         self.initialize.info_message(f"{task_name} end")
-        self.initialize.send_notify(notify_title)
+        if bad_n > 0:
+            self.initialize.send_notify(notify_title)
 
 
 if __name__ == "__main__":
