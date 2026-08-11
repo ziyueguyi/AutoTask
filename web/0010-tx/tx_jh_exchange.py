@@ -44,6 +44,7 @@ class TxJhExchange(Base):
         self.coin_range = self.parse_coin_range(
             (os.getenv("TX_JH_EXCHANGE_range") or "-1").strip()
         )
+        self.h5_token = self.load_tool("h5_token", "h5_token.py")
         self.initialize.info_message(f"兑换范围：{self.format_coin_range(self.coin_range)}")
 
     def load_tool(self, module_name: str, filename: str):
@@ -107,7 +108,7 @@ class TxJhExchange(Base):
                     f"{account_name} 执行失败：{exc}", is_flag=True
                 )
             if index < len(accounts):
-                delay = random.uniform(2.0, 5.0)
+                delay = random.uniform(1.0, 5.0)
                 self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
                 time.sleep(delay)
         self.initialize.info_message(f"{task_name} end")
@@ -131,10 +132,18 @@ class TxJhExchange(Base):
         ret = payload.get("ret") or []
         return str(ret[0]) if ret else "未知错误"
 
-    def mtop_sign_params(self, cookies: dict, data: str) -> tuple[str, str]:
+    def mtop_sign_params(self, cookies: dict, data: str, flag: bool = True) -> tuple[str, str]:
         token = str(cookies.get("_m_h5_tk", "")).split("_", 1)[0]
+        if not token and flag:
+            self.h5_token.ensure_m_h5_tk(
+                self.session,
+                cookies,
+                on_ok=self.initialize.info_message,
+                on_err=self.initialize.error_message,
+            )
+            return self.mtop_sign_params(cookies, data, flag=False)
         if not token:
-            raise RuntimeError("Cookie 缺少 _m_h5_tk")
+            raise RuntimeError("Cookie 缺少 _m_h5_tk，且自动获取失败")
         t = str(int(time.time() * 1000))
         sign = hashlib.md5(f"{token}&{t}&{self.APP_KEY}&{data}".encode()).hexdigest()
         return t, sign
@@ -157,6 +166,7 @@ class TxJhExchange(Base):
             params.update(extra_params)
         url = f"{self.HOST}/h5/{api}/1.0/"
         response = self.session.get(url, params=params, cookies=cookies)
+        time.sleep(random.uniform(1.0, 5.0))
         return self.parse_jsonp(response.text)
 
     def mtop_post(
@@ -199,6 +209,7 @@ class TxJhExchange(Base):
             cookies=cookies,
             headers=headers,
         )
+        time.sleep(random.uniform(1.0, 5.0))
         text = (response.text or "").strip()
         try:
             return self.parse_jsonp(text)
@@ -367,6 +378,12 @@ class TxJhExchange(Base):
         return None
 
     def do_work(self, nick: str, cookies: dict) -> None:
+        self.h5_token.ensure_m_h5_tk(
+            self.session,
+            cookies,
+            on_ok=self.initialize.info_message,
+            on_err=self.initialize.error_message,
+        )
         query_taocoin = self.load_tool("query_taocoin", "query_taocoin.py")
         coin = query_taocoin.query_user_taocoin(cookies, session=self.session)
         if not coin.get("ok"):

@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from importlib import util
 from pathlib import Path
 
-from curl_cffi import requests
+import requests
 
 
 class TianJiYao:
@@ -31,7 +31,7 @@ class TianJiYao:
         self.import_set = import_set_module.ImportSet("TJY")
         self.initialize = self.import_set.import_initialize()
         self.env_name = self.initialize.env_key("account")
-        self.session = requests.Session(timeout=30)
+        self.session = requests.Session()
 
     def emit(self, text: str, ok: bool = True) -> None:
         if ok:
@@ -89,7 +89,6 @@ class TianJiYao:
                 headers=headers,
                 json=body if body is not None else None,
                 params=params,
-                impersonate="chrome131",
             )
         except Exception as exc:
             return {"success": False, "error": f"请求异常：{exc}"}

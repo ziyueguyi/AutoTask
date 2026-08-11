@@ -7,8 +7,11 @@ API: mtop.taobao.pc.growth.taocoin.queryUserTaoCoin
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
+import sys
 import time
+from pathlib import Path
 from typing import Any
 
 from curl_cffi import requests
@@ -16,6 +19,17 @@ from curl_cffi import requests
 APP_KEY = "12574478"
 API = "mtop.taobao.pc.growth.taocoin.queryUserTaoCoin"
 DATA = "{}"
+
+
+def _sleep_after_request(tip: str = "") -> None:
+    name = "tx_request_delay"
+    if name not in sys.modules:
+        path = Path(__file__).resolve().parent / "request_delay.py"
+        spec = importlib.util.spec_from_file_location(name, str(path))
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    sys.modules[name].sleep_after_request(tip)
 
 
 def parse_jsonp(text: str) -> dict:
@@ -120,6 +134,7 @@ def query_user_taocoin(
         },
         timeout=timeout,
     )
+    _sleep_after_request(API)
     raw = parse_jsonp(response.text)
     ok = ret_ok(raw)
     amount, saving = extract_coin_info(raw) if ok else (None, "-")
