@@ -1,0 +1,27 @@
+web/0010-tx/tx_exchange.py
+  s_6b8fc962ff3e09::t_488a97a1003556 47,111,135,137-144,146,169,212,356-361
+web/0010-tx/tx_jh_exchange.py
+  s_6b8fc962ff3e09::t_0e9d2fefde4e33 47,111,135,137-144,146,169,212,381-386
+web/0010-tx/tx_jh_task.py
+  s_6b8fc962ff3e09::t_d54791923bf0ca 5-6,9,16,25-40,53-61,117,124-129,131-133,136-137,139-143,147,151,153-154,156-157,161-170,172-219,221-240,242-291,293-319,321-337,340-348,350-353,357-405
+web/0010-tx/tx_sign.py
+  s_6b8fc962ff3e09::t_1459e3f46ccc0e 18,32,43-49,66,70,126,161,200,203-208,351
+web/0010-tx/tx_task.py
+  s_6b8fc962ff3e09::t_5812dfc3d2acf3 5,27-31,45,108,115-127,151-199,208-210,255-301,304-309,311-312,319-321,324-341
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "9df37ef7a7c87fda23344c3060a4e6f69498ff49",
+  "prompts": {},
+  "sessions": {
+    "s_6b8fc962ff3e09": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c093885d-b318-45e7-b385-34b0d8235236",
+        "model": "auto-smart"
+      },
+      "human_author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
