@@ -17,8 +17,7 @@ import sys
 import time
 from pathlib import Path
 from urllib.parse import unquote
-
-from curl_cffi import requests
+import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from public.Base import Base
@@ -369,6 +368,7 @@ class TxSign(Base):
         notify_title = "TX Sign | https://huodong.taobao.com/"
         self.initialize.info_message(f"{task_name} start")
         accounts = self.initialize.load_accounts()
+
         if not accounts:
             env_name = self.initialize.env_key("account")
             self.initialize.error_message(
