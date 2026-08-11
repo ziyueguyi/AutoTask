@@ -4,6 +4,9 @@
 
 通过 queryUserTaoCoin（可不带有效 sign）触发下发新 token。
 Cookie 必须走 headers['cookie']，不要用 cookies=get_dict()。
+
+注意：刷新请求使用独立的 urllib3 requests（与原 tx_sign 一致），
+不要走 curl_cffi session.get，避免带上 Base 的 Content-Type/代理合并头。
 """
 from __future__ import annotations
 
@@ -17,14 +20,21 @@ import requests
 
 
 def _sleep_after_request(tip: str = "") -> None:
-    name = "tx_request_delay"
-    if name not in sys.modules:
-        path = Path(__file__).resolve().parent / "request_delay.py"
-        spec = importlib.util.spec_from_file_location(name, str(path))
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module)
-    sys.modules[name].sleep_after_request(tip)
+    """请求间隔；缺失 delay 模块时静默跳过，避免影响令牌写入。"""
+    try:
+        name = "tx_request_delay"
+        if name not in sys.modules:
+            path = Path(__file__).resolve().parent / "request_delay.py"
+            if not path.is_file():
+                return
+            spec = importlib.util.spec_from_file_location(name, str(path))
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[name] = module
+            spec.loader.exec_module(module)
+        sys.modules[name].sleep_after_request(tip)
+    except Exception:
+        pass
+
 
 REFRESH_URL = (
     "https://h5api.m.taobao.com/h5/"
@@ -50,12 +60,28 @@ def session_cookie_dict(session: Any) -> dict[str, str]:
     jar: dict[str, str] = {}
     try:
         for cookie in session.cookies.jar:
-            jar[cookie.name] = cookie.value
+            if cookie.name and cookie.value is not None and str(cookie.value) != "":
+                jar[cookie.name] = str(cookie.value)
     except Exception:
-        try:
-            jar.update({k: str(v) for k, v in dict(session.cookies).items()})
-        except Exception:
-            pass
+        pass
+    if jar:
+        return jar
+    try:
+        get_dict = getattr(session.cookies, "get_dict", None)
+        if callable(get_dict):
+            for k, v in (get_dict() or {}).items():
+                if v is not None and str(v) != "":
+                    jar[str(k)] = str(v)
+            if jar:
+                return jar
+    except Exception:
+        pass
+    try:
+        for k, v in dict(session.cookies).items():
+            if v is not None and str(v) != "":
+                jar[str(k)] = str(v)
+    except Exception:
+        pass
     return jar
 
 
@@ -86,7 +112,7 @@ def session_cookie_header(session: Any, cookies: dict[str, str] | None = None) -
 
 
 def _cookies_from_set_cookie(response: Any) -> dict[str, str]:
-    """从 Set-Cookie 头兜底解析（部分环境 response.cookies 读不到 Partitioned/SameSite）。"""
+    """从 Set-Cookie 头兜底解析（Partitioned/SameSite 时 response.cookies 常为空）。"""
     jar: dict[str, str] = {}
     headers = getattr(response, "headers", None)
     if headers is None:
@@ -96,7 +122,7 @@ def _cookies_from_set_cookie(response: Any) -> dict[str, str]:
     for getter in ("get_list", "getlist", "get_all"):
         if hasattr(headers, getter):
             try:
-                raw_list = (
+                raw_list = list(
                     getattr(headers, getter)("set-cookie")
                     or getattr(headers, getter)("Set-Cookie")
                     or []
@@ -127,19 +153,38 @@ def _cookies_from_set_cookie(response: Any) -> dict[str, str]:
     return jar
 
 
-def _extract_h5_tokens(response: Any) -> tuple[str | None, str | None]:
-    new_tk = None
-    new_enc = None
+def _cookies_from_jar(cookie_jar: Any) -> dict[str, str]:
+    jar: dict[str, str] = {}
+    if cookie_jar is None:
+        return jar
     try:
-        new_tk = response.cookies.get("_m_h5_tk")
-        new_enc = response.cookies.get("_m_h5_tk_enc")
+        for c in cookie_jar:
+            name = getattr(c, "name", None)
+            value = getattr(c, "value", None)
+            if name and value is not None and str(value) != "":
+                jar[str(name)] = str(value)
     except Exception:
         pass
-    if not new_tk:
-        parsed = _cookies_from_set_cookie(response)
-        new_tk = new_tk or parsed.get("_m_h5_tk")
-        new_enc = new_enc or parsed.get("_m_h5_tk_enc")
-    return new_tk, new_enc
+    if jar:
+        return jar
+    try:
+        get = getattr(cookie_jar, "get", None)
+        if callable(get):
+            for key in ("_m_h5_tk", "_m_h5_tk_enc"):
+                val = get(key)
+                if val:
+                    jar[key] = str(val)
+    except Exception:
+        pass
+    return jar
+
+
+def _extract_h5_tokens(response: Any) -> tuple[str | None, str | None]:
+    """优先遍历 cookie jar，再兜底解析 Set-Cookie 头。"""
+    parsed = _cookies_from_jar(getattr(response, "cookies", None))
+    if "_m_h5_tk" not in parsed:
+        parsed.update(_cookies_from_set_cookie(response))
+    return parsed.get("_m_h5_tk"), parsed.get("_m_h5_tk_enc")
 
 
 def query_user_taocoin(
@@ -162,7 +207,7 @@ def query_user_taocoin(
     cookie_header = session_cookie_header(session, jar)
     if not cookie_header.strip():
         if on_err:
-            on_err("_m_h5_tk重置失败：Cookie 为空")
+            on_err("_m_h5_tk重置失败：Cookie 为空（session 未读到账号 Cookie）")
         return False
 
     headers = {
@@ -183,14 +228,29 @@ def query_user_taocoin(
         ),
         "cookie": cookie_header,
     }
-    response = requests.get(
-        REFRESH_URL, params=REFRESH_PARAMS, headers=headers, timeout=timeout
-    )
-    _sleep_after_request("queryUserTaoCoin")
-    new_tk, new_enc = _extract_h5_tokens(response)
-    if not new_tk:
+    try:
+        response = requests.get(
+            REFRESH_URL, params=REFRESH_PARAMS, headers=headers, timeout=timeout
+        )
+    except Exception as exc:
         if on_err:
-            on_err(f"_m_h5_tk重置失败（HTTP {getattr(response, 'status_code', '?')}）")
+            on_err(f"_m_h5_tk重置失败：请求异常 {exc}")
+        return False
+
+    # 先取 token，再休眠，避免 delay 模块异常导致“看起来没拿到 cookie”
+    new_tk, new_enc = _extract_h5_tokens(response)
+    _sleep_after_request("queryUserTaoCoin")
+
+    if not new_tk:
+        has_sc = bool(
+            getattr(response, "headers", {}).get("set-cookie")
+            or getattr(response, "headers", {}).get("Set-Cookie")
+        )
+        if on_err:
+            on_err(
+                f"_m_h5_tk重置失败（HTTP {getattr(response, 'status_code', '?')}，"
+                f"Set-Cookie={'有' if has_sc else '无'}，Cookie字段数={len(jar)}）"
+            )
         return False
 
     updated = {
