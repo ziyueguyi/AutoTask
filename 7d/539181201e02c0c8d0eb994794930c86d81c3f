@@ -1,0 +1,14 @@
+web/0010-tx/tools/h5_token.py
+  h_756b7de6229b75 7-9,23-37,63-64,66-84,115,125,156-159,161-165,168-187,210,231-240,242-243,245-248,250-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "7d539181201e02c0c8d0eb994794930c86d81c3f",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
