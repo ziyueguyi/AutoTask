@@ -98,14 +98,16 @@ class TxJhExchange(Base):
                 cookies = self.cookies_to_dict(account)
                 if not cookies:
                     self.initialize.error_message(
-                        f"{account_name} Cookie 为空", is_flag=True
+                        f"{account_name} Cookie 为空",
+                    is_flag=True,
                     )
                 else:
                     nick = self.account_nick(cookies, account_name)
                     self.do_work(nick, cookies)
             except Exception as exc:
                 self.initialize.error_message(
-                    f"{account_name} 执行失败：{exc}", is_flag=True
+                    f"{account_name} 执行失败：{exc}",
+                is_flag=True,
                 )
             if index < len(accounts):
                 delay = random.uniform(1.0, 5.0)
@@ -355,25 +357,23 @@ class TxJhExchange(Base):
         cost = self.benefit_coin_cost(item)
         label = self.benefit_label(item)
         if not self.is_tao_coin_cost(item):
-            self.initialize.info_message(f"{nick} 跳过 {label}：非淘金币消耗", is_flag=True)
+            self.initialize.info_message(f"{nick} 跳过 {label}：非淘金币消耗")
             return False
         if cost is None:
-            self.initialize.error_message(f"{nick} {label} 缺少 costCoin，跳过", is_flag=True)
+            self.initialize.error_message(f"{nick} {label} 缺少 costCoin，跳过")
             return False
         if not item.get("hasInventory"):
-            self.initialize.info_message(f"{nick} 跳过 {label}：无库存", is_flag=True)
+            self.initialize.info_message(f"{nick} 跳过 {label}：无库存")
             return False
         if balance < cost:
             self.initialize.info_message(
                 f"{nick} 跳过 {label}：余额 {balance} < 所需 {cost}",
-                is_flag=True,
             )
             return False
         # TODO: 接入真实兑换/抽奖 mtop 后在此调用，成功返回 True
         self.initialize.info_message(
             f"{nick} 余额充足（{balance} ≥ {cost}），待兑换：{label} "
             f"benefitCode={item.get('benefitCode')}（接口待抓包）",
-            is_flag=True,
         )
         return None
 
@@ -395,7 +395,9 @@ class TxJhExchange(Base):
         balance = coin.get("coin_amount")
         saving = coin.get("coin_saving", "-")
         if balance is None:
-            self.initialize.error_message(f"{nick} 未读到 coinAmount，跳过兑换", is_flag=True)
+            self.initialize.error_message(
+                f"{nick} 未读到 coinAmount，跳过兑换", is_flag=True
+            )
             return
         self.initialize.info_message(
             f"{nick} 当前淘金币余额 {balance}（约 {saving} 元）",
@@ -412,7 +414,9 @@ class TxJhExchange(Base):
         benefits = self.extract_red_packet_list(benefit_resp)
         matched = self.print_benefits(nick, benefits, balance=balance)
         if not matched:
-            self.initialize.info_message(f"{nick} 范围内无可兑换红包", is_flag=True)
+            self.initialize.info_message(
+                f"{nick} 范围内无可兑换红包", is_flag=True
+            )
             return
 
         remain = balance
@@ -426,14 +430,12 @@ class TxJhExchange(Base):
                 label = self.benefit_label(item)
                 self.initialize.info_message(
                     f"{nick} 跳过 {label}：余额 {remain} < 所需 {cost if cost is not None else '?'}",
-                    is_flag=True,
                 )
                 continue
             if not item.get("hasInventory"):
                 skipped += 1
                 self.initialize.info_message(
                     f"{nick} 跳过 {self.benefit_label(item)}：无库存",
-                    is_flag=True,
                 )
                 continue
             result = self.try_exchange(nick, cookies, item, remain)

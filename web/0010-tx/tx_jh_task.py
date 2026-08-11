@@ -8,7 +8,7 @@
 #   TX_notify   通知开关，填 1 开启
 # 依赖：curl_cffi；任务逻辑见 tools/pentaprism_task.py
 const $ = new Env('淘江湖任务')
-cron: 1 1 1 1 1
+cron: 20 9,21 * * *
 """
 import random
 import sys
@@ -104,14 +104,16 @@ class TxJhTask(Base):
                 cookies = self.cookies_to_dict(account)
                 if not cookies:
                     self.initialize.error_message(
-                        f"{account_name} Cookie 为空", is_flag=True
+                        f"{account_name} Cookie 为空",
+                    is_flag=True,
                     )
                 else:
                     nick = self.account_nick(cookies, account_name)
                     self.do_work(nick, cookies)
             except Exception as exc:
                 self.initialize.error_message(
-                    f"{account_name} 执行失败：{exc}", is_flag=True
+                    f"{account_name} 执行失败：{exc}",
+                is_flag=True,
                 )
             if index < len(accounts):
                 delay = random.uniform(1.0, 5.0)
@@ -143,31 +145,33 @@ class TxJhTask(Base):
             referer=self.REFERER,
         )
 
-    def print_tasks(self, nick: str, data: dict) -> None:
+    def print_tasks(self, nick: str, data: dict, *, notify: bool = False) -> None:
         api = self.task_api
         model = (data or {}).get("model") or []
         finish = (data or {}).get("finishCount", "?")
         total = (data or {}).get("totalCount") or len(model)
-        self.initialize.info_message(f"{nick} JH 任务进度：{finish}/{total}", is_flag=True)
+        self.initialize.info_message(f"{nick} JH 任务进度：{finish}/{total}", is_flag=notify)
         for index, item in enumerate(model, 1):
             title = api.task_title(item)
             flag = " | 仅展示" if self.should_skip_execute(title) else ""
-            self.initialize.info_message(
+            line = (
                 f"{nick} [{index}] {title} | {api.task_status(item)} | "
-                f"金币 {api.task_coin(item)} | {api.task_url(item)}{flag}",
-                is_flag=True,
+                f"金币 {api.task_coin(item)}{flag}"
             )
+            if not notify:
+                line += f" | {api.task_url(item)}"
+            self.initialize.info_message(line, is_flag=notify)
 
     def do_click_goods_tasks(self, nick: str, cookies: dict, data: dict) -> None:
         api = self.task_api
         pending = api.iter_pending_click_goods_tasks(data)
         if not pending:
-            self.initialize.info_message(f"{nick} 无可自动完成的逛商品任务", is_flag=True)
+            self.initialize.info_message(f"{nick} 无可自动完成的逛商品任务")
             return
         for item in pending:
             title = api.task_title(item)
             if self.should_skip_execute(title):
-                self.initialize.info_message(f"{nick} 跳过执行（仅展示）：{title}", is_flag=True)
+                self.initialize.info_message(f"{nick} 跳过执行（仅展示）：{title}")
                 continue
             try:
                 params = api.resolve_task_params(item)
@@ -176,7 +180,6 @@ class TxJhTask(Base):
                 self.initialize.info_message(
                     f"{nick} 逛商品：{title} | 需点击 {remain}/{need} 次"
                     f" | deliveryId={params.get('deliveryId')} | implId={params.get('implId')}",
-                    is_flag=True,
                 )
                 ok_count = 0
                 for i in range(1, remain + 1):
@@ -191,39 +194,35 @@ class TxJhTask(Base):
                         self.initialize.error_message(
                             f"{nick} {title} 第{i}次 clickGoodsAd 失败："
                             f"{api.ret_msg(result)} | {(result.get('data') or {})}",
-                            is_flag=True,
                         )
                         break
                     ok_count += 1
                     self.initialize.info_message(
                         f"{nick} {title} 第{i}/{remain} 次点击成功",
-                        is_flag=True,
                     )
                 self.initialize.info_message(
                     f"{nick} {title} 逛商品完成 {ok_count}/{remain}",
-                    is_flag=True,
                 )
             except Exception as exc:
-                self.initialize.error_message(f"{nick} {title} 逛商品失败：{exc}", is_flag=True)
+                self.initialize.error_message(f"{nick} {title} 逛商品失败：{exc}")
 
     def do_jump_tasks(self, nick: str, cookies: dict, data: dict) -> None:
         """跳转/浏览类：scene.trigger + 访问 action URL（如「浏览淘金币频道」）。"""
         api = self.task_api
         pending = api.iter_pending_jump_tasks(data)
         if not pending:
-            self.initialize.info_message(f"{nick} 无可自动完成的跳转任务", is_flag=True)
+            self.initialize.info_message(f"{nick} 无可自动完成的跳转任务")
             return
         for item in pending:
             title = api.task_title(item)
             if self.should_skip_execute(title):
-                self.initialize.info_message(f"{nick} 跳过执行（仅展示）：{title}", is_flag=True)
+                self.initialize.info_message(f"{nick} 跳过执行（仅展示）：{title}")
                 continue
             try:
                 params = api.resolve_task_params(item)
                 self.initialize.info_message(
                     f"{nick} 触发任务：{title} | deliveryId={params.get('deliveryId')} "
                     f"| implId={params.get('implId')}",
-                    is_flag=True,
                 )
                 result = api.trigger_scene(
                     cookies,
@@ -236,7 +235,6 @@ class TxJhTask(Base):
                 if not api.ret_ok(result):
                     self.initialize.error_message(
                         f"{nick} {title} trigger 失败：{api.ret_msg(result)}",
-                        is_flag=True,
                     )
                     continue
                 model_data = (result.get("data") or {}).get("model") or {}
@@ -245,13 +243,11 @@ class TxJhTask(Base):
                 )
                 self.initialize.info_message(
                     f"{nick} {title} trigger 成功 status={status}",
-                    is_flag=True,
                 )
                 if status not in {"AWARDING", "AWARD", "COMPLETE", "COMPLETED"}:
                     self.initialize.info_message(
                         f"{nick} {title} trigger 后未进入可领状态，"
                         f"可能还需页面内真实操作（如投票/聊天）",
-                        is_flag=True,
                     )
                 url = api.task_url(model_data) if model_data else api.task_url(item)
                 if url and url != "-":
@@ -269,32 +265,29 @@ class TxJhTask(Base):
                     self.initialize.info_message(
                         f"{nick} {title} 访问任务页 HTTP {http_status}"
                         + (f"（页面停留 {duration}s）" if duration else ""),
-                        is_flag=True,
                     )
             except Exception as exc:
-                self.initialize.error_message(f"{nick} {title} 执行失败：{exc}", is_flag=True)
+                self.initialize.error_message(f"{nick} {title} 执行失败：{exc}")
 
     def do_claim_awards(self, nick: str, cookies: dict, data: dict) -> None:
         api = self.task_api
         claimable = api.iter_claimable_tasks(data)
         if not claimable:
-            self.initialize.info_message(f"{nick} 无可领取任务奖励", is_flag=True)
+            self.initialize.info_message(f"{nick} 无可领取任务奖励")
             return
         self.initialize.info_message(
             f"{nick} 开始统一领取，共 {len(claimable)} 个待领奖任务",
-            is_flag=True,
         )
         for item in claimable:
             title = api.task_title(item)
             if self.should_skip_execute(title):
-                self.initialize.info_message(f"{nick} 跳过领取（仅展示）：{title}", is_flag=True)
+                self.initialize.info_message(f"{nick} 跳过领取（仅展示）：{title}")
                 continue
             try:
                 params = api.resolve_task_params(item)
                 self.initialize.info_message(
                     f"{nick} 领取：{title} | deliveryId={params.get('deliveryId')} "
                     f"| implId={params.get('implId')}",
-                    is_flag=True,
                 )
                 result = api.award_scene(
                     cookies,
@@ -307,7 +300,6 @@ class TxJhTask(Base):
                 if not api.ret_ok(result):
                     self.initialize.error_message(
                         f"{nick} {title} 领取失败：{api.ret_msg(result)}",
-                        is_flag=True,
                     )
                     continue
                 coin = api.award_coin_amount(result)
@@ -315,10 +307,9 @@ class TxJhTask(Base):
                 status = model.get("status") or ((model.get("progress") or {}).get("status"))
                 self.initialize.info_message(
                     f"{nick} {title} 领取成功 +{coin} 淘金币 status={status}",
-                    is_flag=True,
                 )
             except Exception as exc:
-                self.initialize.error_message(f"{nick} {title} 领取异常：{exc}", is_flag=True)
+                self.initialize.error_message(f"{nick} {title} 领取异常：{exc}")
 
     def count_auto_actions(self, data: dict) -> tuple[int, int, int]:
         api = self.task_api
@@ -345,24 +336,25 @@ class TxJhTask(Base):
         )
         api = self.task_api
 
-        self.initialize.info_message(self.section_banner("任务查询"), is_flag=True)
+        self.initialize.info_message(self.section_banner("任务查询"))
         tasks = self.query_tasks(cookies)
         if not api.ret_ok(tasks):
             self.initialize.error_message(
-                f"{nick} JH 任务查询失败：{api.ret_msg(tasks)}", is_flag=True
+                f"{nick} JH 任务查询失败：{api.ret_msg(tasks)}",
+                is_flag=True,
             )
             return
         task_data = tasks.get("data") or {}
         self.print_tasks(nick, task_data)
 
-        self.initialize.info_message(self.section_banner("任务执行"), is_flag=True)
+        self.initialize.info_message(self.section_banner("任务执行"))
         for round_no in range(1, self.MAX_EXECUTE_ROUNDS + 1):
             if round_no > 1:
                 tasks = self.query_tasks(cookies)
                 if not api.ret_ok(tasks):
                     self.initialize.error_message(
                         f"{nick} 第{round_no}轮查询失败：{api.ret_msg(tasks)}",
-                        is_flag=True,
+                    is_flag=True,
                     )
                     break
                 task_data = tasks.get("data") or {}
@@ -370,13 +362,11 @@ class TxJhTask(Base):
                 if n_click + n_jump + n_claim <= 0:
                     self.initialize.info_message(
                         f"{nick} 第{round_no}轮无新的可自动任务，结束补跑",
-                        is_flag=True,
                     )
                     break
                 self.initialize.info_message(
                     f"{nick} 第{round_no}轮补跑（轮换帖子等）"
                     f"：逛商品 {n_click} / 跳转 {n_jump} / 待领 {n_claim}",
-                    is_flag=True,
                 )
                 self.print_tasks(nick, task_data)
 
@@ -387,17 +377,17 @@ class TxJhTask(Base):
             if not api.ret_ok(tasks_after):
                 self.initialize.error_message(
                     f"{nick} 执行后任务查询失败：{api.ret_msg(tasks_after)}",
-                    is_flag=True,
+                is_flag=True,
                 )
                 break
             after_data = tasks_after.get("data") or {}
             self.do_claim_awards(nick, cookies, after_data)
             task_data = after_data
 
-        self.initialize.info_message(self.section_banner("结果查询"), is_flag=True)
+        self.initialize.info_message(self.section_banner("结果查询"))
         tasks_final = self.query_tasks(cookies)
         if api.ret_ok(tasks_final):
-            self.print_tasks(nick, tasks_final.get("data") or {})
+            self.print_tasks(nick, tasks_final.get("data") or {}, notify=True)
         else:
             self.initialize.error_message(
                 f"{nick} 结果查询失败：{api.ret_msg(tasks_final)}",

@@ -342,7 +342,7 @@ class TxSign(Base):
         tomorrow = (sign.get("signAward") or {}).get("awardAmount") or (
             (sign.get("signCard") or {}).get("signRewardTomorrow")) or "-"
         msg = f"{display_nick} 余额 {coin}（约 {saving} 元）| 今日{signed} | {progress} | 明日可得 {tomorrow}"
-        self.initialize.info_message(msg, is_flag=True, )
+        self.initialize.info_message(msg, is_flag=True)
 
     def do_work(self, nick: str) -> None:
         calendar = self.sign_calendar()
@@ -354,7 +354,7 @@ class TxSign(Base):
 
         already_signed = self.is_today_signed(cal_data)
         if not already_signed:
-            self.initialize.info_message(f"{nick} 今日未签到，调用领取接口…", is_flag=True)
+            self.initialize.info_message(f"{nick} 今日未签到，调用领取接口…")
             collect = self.collect_reward()
             if not self.ret_ok(collect):
                 self.initialize.error_message(f"{nick} 签到领取失败：{self.ret_msg(collect)}", is_flag=True)
@@ -372,7 +372,7 @@ class TxSign(Base):
             self.initialize.error_message(f"{nick} 小镇首页失败：{self.ret_msg(town)}", is_flag=True)
 
         if already_signed:
-            self.initialize.info_message(f"{nick} 今日已签到，跳过领取接口", is_flag=True)
+            self.initialize.info_message(f"{nick} 今日已签到，跳过领取接口")
 
     def run(self) -> None:
         task_name = "TX Sign"
@@ -395,7 +395,8 @@ class TxSign(Base):
                 cookies = self.cookies_to_dict(account)
                 if not cookies:
                     self.initialize.error_message(
-                        f"{account_name} Cookie 为空", is_flag=True
+                        f"{account_name} Cookie 为空",
+                    is_flag=True,
                     )
                 else:
                     self.apply_cookies(cookies)
@@ -403,7 +404,8 @@ class TxSign(Base):
                     self.do_work(nick)
             except Exception as exc:
                 self.initialize.error_message(
-                    f"{account_name} 执行失败：{exc}", is_flag=True
+                    f"{account_name} 执行失败：{exc}",
+                is_flag=True,
                 )
             if index < len(accounts):
                 delay = random.uniform(2.0, 5.0)

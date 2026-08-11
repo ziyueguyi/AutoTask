@@ -98,14 +98,16 @@ class TxExchange(Base):
                 cookies = self.cookies_to_dict(account)
                 if not cookies:
                     self.initialize.error_message(
-                        f"{account_name} Cookie 为空", is_flag=True
+                        f"{account_name} Cookie 为空",
+                    is_flag=True,
                     )
                 else:
                     nick = self.account_nick(cookies, account_name)
                     self.do_work(nick, cookies)
             except Exception as exc:
                 self.initialize.error_message(
-                    f"{account_name} 执行失败：{exc}", is_flag=True
+                    f"{account_name} 执行失败：{exc}",
+                is_flag=True,
                 )
             if index < len(accounts):
                 delay = random.uniform(1.0, 5.0)
@@ -311,7 +313,7 @@ class TxExchange(Base):
         matched = self.filter_benefits_by_range(benefits)
         self.initialize.info_message(
             f"{nick} 金币换好礼（共 {len(benefits)} 个，范围内 {len(matched)} 个）：",
-            is_flag=True,
+                is_flag=True,
         )
         for index, item in enumerate(benefits, 1):
             amount = self.benefit_label(item)
@@ -338,17 +340,15 @@ class TxExchange(Base):
         cost = self.benefit_coin_cost(item)
         label = self.benefit_label(item)
         if cost is None:
-            self.initialize.error_message(f"{nick} {label} 缺少 reduceCoinAmount，跳过", is_flag=True)
+            self.initialize.error_message(f"{nick} {label} 缺少 reduceCoinAmount，跳过")
             return False
         if balance < cost:
             self.initialize.info_message(
                 f"{nick} 跳过 {label}：余额 {balance} < 所需 {cost}",
-                is_flag=True,
             )
             return False
         self.initialize.info_message(
             f"{nick} 余额充足（{balance} ≥ {cost}），待兑换：{label}（接口待抓包）",
-            is_flag=True,
         )
         return None
 
@@ -374,7 +374,7 @@ class TxExchange(Base):
             return
         self.initialize.info_message(
             f"{nick} 当前淘金币余额 {balance}（约 {saving} 元）",
-            is_flag=True,
+                is_flag=True,
         )
 
         home = self.query_taocoin_home(cookies)
@@ -398,7 +398,6 @@ class TxExchange(Base):
                 label = self.benefit_label(item)
                 self.initialize.info_message(
                     f"{nick} 跳过 {label}：余额 {remain} < 所需 {cost if cost is not None else '?'}",
-                    is_flag=True,
                 )
                 continue
             result = self.try_exchange(nick, cookies, item, remain)
@@ -411,7 +410,7 @@ class TxExchange(Base):
                 skipped += 1
         self.initialize.info_message(
             f"{nick} 兑换结束：成功 {exchanged}，待接入 {pending}，跳过 {skipped}，余额 {remain}",
-            is_flag=True,
+                is_flag=True,
         )
 
 
