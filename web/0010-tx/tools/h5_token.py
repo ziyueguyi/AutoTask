@@ -8,6 +8,7 @@ Cookie 必须走 headers['cookie']，不要用 cookies=get_dict()。
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -84,6 +85,63 @@ def session_cookie_header(session: Any, cookies: dict[str, str] | None = None) -
     )
 
 
+def _cookies_from_set_cookie(response: Any) -> dict[str, str]:
+    """从 Set-Cookie 头兜底解析（部分环境 response.cookies 读不到 Partitioned/SameSite）。"""
+    jar: dict[str, str] = {}
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        return jar
+
+    raw_list: list[str] = []
+    for getter in ("get_list", "getlist", "get_all"):
+        if hasattr(headers, getter):
+            try:
+                raw_list = (
+                    getattr(headers, getter)("set-cookie")
+                    or getattr(headers, getter)("Set-Cookie")
+                    or []
+                )
+            except Exception:
+                raw_list = []
+            if raw_list:
+                break
+    if not raw_list:
+        single = None
+        try:
+            single = headers.get("set-cookie") or headers.get("Set-Cookie")
+        except Exception:
+            single = None
+        if single:
+            # Expires 含逗号，不能简单按逗号拆
+            parts = re.split(r",(?=\s*[^;=]+=)", str(single))
+            raw_list = [p.strip() for p in parts if p.strip()]
+
+    for item in raw_list:
+        first = str(item).split(";", 1)[0].strip()
+        if "=" not in first:
+            continue
+        name, value = first.split("=", 1)
+        name, value = name.strip(), value.strip()
+        if name:
+            jar[name] = value
+    return jar
+
+
+def _extract_h5_tokens(response: Any) -> tuple[str | None, str | None]:
+    new_tk = None
+    new_enc = None
+    try:
+        new_tk = response.cookies.get("_m_h5_tk")
+        new_enc = response.cookies.get("_m_h5_tk_enc")
+    except Exception:
+        pass
+    if not new_tk:
+        parsed = _cookies_from_set_cookie(response)
+        new_tk = new_tk or parsed.get("_m_h5_tk")
+        new_enc = new_enc or parsed.get("_m_h5_tk_enc")
+    return new_tk, new_enc
+
+
 def query_user_taocoin(
     session: Any,
     cookies: dict[str, str] | None = None,
@@ -101,6 +159,12 @@ def query_user_taocoin(
     if cookies is not None:
         apply_cookies(session, jar)
 
+    cookie_header = session_cookie_header(session, jar)
+    if not cookie_header.strip():
+        if on_err:
+            on_err("_m_h5_tk重置失败：Cookie 为空")
+        return False
+
     headers = {
         "accept": "*/*",
         "accept-language": "zh,zh-CN;q=0.9",
@@ -117,17 +181,16 @@ def query_user_taocoin(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
         ),
-        "cookie": session_cookie_header(session, jar),
+        "cookie": cookie_header,
     }
     response = requests.get(
         REFRESH_URL, params=REFRESH_PARAMS, headers=headers, timeout=timeout
     )
     _sleep_after_request("queryUserTaoCoin")
-    new_tk = response.cookies.get("_m_h5_tk")
-    new_enc = response.cookies.get("_m_h5_tk_enc")
+    new_tk, new_enc = _extract_h5_tokens(response)
     if not new_tk:
         if on_err:
-            on_err("_m_h5_tk重置失败")
+            on_err(f"_m_h5_tk重置失败（HTTP {getattr(response, 'status_code', '?')}）")
         return False
 
     updated = {
