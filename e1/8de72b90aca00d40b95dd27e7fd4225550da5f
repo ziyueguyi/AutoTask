@@ -1,0 +1,14 @@
+web/0010-tx/tx_check.py
+  h_756b7de6229b75 181,232-233,235-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "e18de72b90aca00d40b95dd27e7fd4225550da5f",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
