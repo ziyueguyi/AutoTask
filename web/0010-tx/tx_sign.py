@@ -18,16 +18,18 @@ import time
 from pathlib import Path
 from urllib.parse import unquote
 
+from curl_cffi import requests
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from public.Base import Base
 
 
 class TxSign(Base):
-    APP_KEY = "12574478"
-    HOST = "https://h5api.m.taobao.com"
 
     def __init__(self) -> None:
         super().__init__(["TX", "TX_JH"])
+        self.app_key = "12574478"
+        self.host = "https://h5api.m.taobao.com"
         self.session.headers.update({
             "accept": "*/*",
             "accept-language": "zh,zh-CN;q=0.9",
@@ -53,50 +55,43 @@ class TxSign(Base):
             return TxSign.cookies_to_dict({"cookie": account["token"]})
         return {k: v for k, v in account.items() if v is not None}
 
-    @staticmethod
-    def account_nick(cookies: dict, fallback: str = "") -> str:
+    def session_cookie_dict(self) -> dict[str, str]:
+        jar: dict[str, str] = {}
+        try:
+            for cookie in self.session.cookies.jar:
+                jar[cookie.name] = cookie.value
+        except Exception:
+            try:
+                jar.update({k: str(v) for k, v in dict(self.session.cookies).items()})
+            except Exception:
+                pass
+        return jar
+
+    def apply_cookies(self, cookies: dict[str, str]) -> None:
+        """清空并写入当前账号 Cookie 到 session。"""
+        try:
+            self.session.cookies.clear()
+        except Exception:
+            pass
+        for name, value in cookies.items():
+            if value is None or str(value) == "":
+                continue
+            for domain in (".taobao.com", ".tmall.com", "h5api.m.taobao.com"):
+                try:
+                    self.session.cookies.set(name, str(value), domain=domain)
+                except Exception:
+                    try:
+                        self.session.cookies.set(name, str(value))
+                    except Exception:
+                        pass
+
+    def account_nick(self, fallback: str = "") -> str:
+        jar = self.session_cookie_dict()
         for key in ("tracknick", "lgc", "_nk_", "dnk", "unb"):
-            val = (cookies.get(key) or "").strip()
+            val = (jar.get(key) or "").strip()
             if val:
                 return unquote(val)
         return fallback
-
-    def run(self) -> None:
-        task_name = "TX Sign"
-        notify_title = "TX Sign | https://huodong.taobao.com/"
-        self.initialize.info_message(f"{task_name} start")
-        accounts = self.initialize.load_accounts()
-        if not accounts:
-            env_name = self.initialize.env_key("account")
-            self.initialize.error_message(
-                f"未配置环境变量 {env_name}，请在青龙面板配置 Cookie",
-                is_flag=True,
-            )
-            self.initialize.send_notify(notify_title)
-            return
-        for index, (account_name, account) in enumerate(accounts, 1):
-            self.initialize.info_message(
-                f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}"
-            )
-            try:
-                cookies = self.cookies_to_dict(account)
-                if not cookies:
-                    self.initialize.error_message(
-                        f"{account_name} Cookie 为空", is_flag=True
-                    )
-                else:
-                    nick = self.account_nick(cookies, account_name)
-                    self.do_work(nick, cookies)
-            except Exception as exc:
-                self.initialize.error_message(
-                    f"{account_name} 执行失败：{exc}", is_flag=True
-                )
-            if index < len(accounts):
-                delay = random.uniform(2.0, 5.0)
-                self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
-                time.sleep(delay)
-        self.initialize.info_message(f"{task_name} end")
-        self.initialize.send_notify(notify_title)
 
     @staticmethod
     def parse_jsonp(text: str) -> dict:
@@ -115,19 +110,22 @@ class TxSign(Base):
         ret = payload.get("ret") or []
         return str(ret[0]) if ret else "未知错误"
 
-    def mtop_sign_params(self, cookies: dict, data: str) -> tuple[str, str]:
-        token = str(cookies.get("_m_h5_tk", "")).split("_", 1)[0]
-        if not token:
-            raise RuntimeError("Cookie 缺少 _m_h5_tk")
+    def mtop_sign_params(self, data: str, flag=True) -> tuple[str, str]:
+        token = str(self.session_cookie_dict().get("_m_h5_tk", "")).split("_", 1)[0]
+        if not token and flag:
+            self.query_user_taocoin()
+            return self.mtop_sign_params(data, flag=False)
+        elif not token and not flag:
+            raise KeyError("_m_h5_tk为空，获取失败")
         t = str(int(time.time() * 1000))
-        sign = hashlib.md5(f"{token}&{t}&{self.APP_KEY}&{data}".encode()).hexdigest()
+        sign = hashlib.md5(f"{token}&{t}&{self.app_key}&{data}".encode()).hexdigest()
         return t, sign
 
-    def mtop_get(self, cookies: dict, api: str, data: str, extra_params: dict | None = None) -> dict:
-        t, sign = self.mtop_sign_params(cookies, data)
+    def mtop_get(self, api: str, data: str, extra_params: dict | None = None, flag=True) -> dict:
+        t, sign = self.mtop_sign_params(data)
         params = {
             "jsv": "2.5.1",
-            "appKey": self.APP_KEY,
+            "appKey": self.app_key,
             "t": t,
             "sign": sign,
             "api": api,
@@ -139,22 +137,20 @@ class TxSign(Base):
         }
         if extra_params:
             params.update(extra_params)
-        url = f"{self.HOST}/h5/{api}/1.0/"
-        response = self.session.get(url, params=params, cookies=cookies)
-        return self.parse_jsonp(response.text)
+        url = f"{self.host}/h5/{api}/1.0/"
+        response = self.session.get(url, params=params)
+        if '令牌过期' in response.text and flag:
+            self.initialize.error_message(f'原因：令牌失效，正在重置')
+            self.session.cookies.update({"_m_h5_tk": ''})
+            return self.mtop_get(api, response.text, extra_params, flag=False)
+        else:
+            return self.parse_jsonp(response.text)
 
-    def mtop_post(
-        self,
-        cookies: dict,
-        api: str,
-        data: str,
-        extra_params: dict | None = None,
-        extra_headers: dict | None = None,
-    ) -> dict:
-        t, sign = self.mtop_sign_params(cookies, data)
+    def mtop_post(self, api: str, data: str, extra_params: dict | None = None, extra_headers: dict | None = None, ):
+        t, sign = self.mtop_sign_params(data)
         params = {
             "jsv": "2.5.1",
-            "appKey": self.APP_KEY,
+            "appKey": self.app_key,
             "t": t,
             "sign": sign,
             "v": "1.0",
@@ -175,23 +171,17 @@ class TxSign(Base):
         }
         if extra_headers:
             headers.update(extra_headers)
-        url = f"{self.HOST}/h5/{api}/1.0/"
-        response = self.session.post(
-            url,
-            params=params,
-            data={"data": data},
-            cookies=cookies,
-            headers=headers,
-        )
+        url = f"{self.host}/h5/{api}/1.0/"
+        response = self.session.post(url, params=params, data={"data": data}, headers=headers, )
         text = (response.text or "").strip()
         try:
             return self.parse_jsonp(text)
-        except Exception:
+        except Exception as e:
+            self.initialize.error_message(str(e))
             return json.loads(text)
 
-    def sign_calendar(self, cookies: dict) -> dict:
+    def sign_calendar(self) -> dict:
         return self.mtop_get(
-            cookies,
             "mtop.coingame.sign.calendar.pure.pc",
             '{"bizCode":"taoCoin","subBizCode":"coinTown"}',
             {
@@ -202,34 +192,77 @@ class TxSign(Base):
             },
         )
 
-    def collect_reward(self, cookies: dict) -> dict:
+    def collect_reward(self) -> dict:
         return self.mtop_post(
-            cookies,
             "mtop.coingame.collect.reward.pc",
             '{"bizCode":"taoCoin","subBizCode":"coinTown","page":"pc"}',
         )
 
-    def town_index(self, cookies: dict) -> dict:
-        return self.mtop_get(
-            cookies,
-            "mtop.coingame.town.index.get.pc",
-            '{"bizCode":"taoCoin","subBizCode":"coinTown"}',
-            {
-                "valueType": "original",
-                "jsonpIncPrefix": "tbbe",
-                "type": "originaljsonp",
-                "callback": "mtopjsonptbbe10",
-            },
-        )
+    def town_index(self) -> dict:
+        api = "mtop.coingame.town.index.get.pc"
+        data = '{"bizCode":"taoCoin","subBizCode":"coinTown"}'
+        extra_params = {
+            "valueType": "original",
+            "jsonpIncPrefix": "tbbe",
+            "type": "originaljsonp",
+            "callback": "mtopjsonptbbe10",
+        }
+        return self.mtop_get(api, data, extra_params, )
+
+    def query_user_taocoin(self) -> None:
+        """
+        查询淘金币余额。
+        API: mtop.taobao.pc.growth.taocoin.queryUserTaoCoin
+        令牌过期时会自动吃下发的 _m_h5_tk 并重试一次。
+        """
+        url = 'https://h5api.m.taobao.com/h5/mtop.taobao.pc.growth.taocoin.queryusertaocoin/1.0/'
+        params = {
+            'jsv': '2.5.1',
+            'appKey': '12574478',
+            # 't': '1786096570093',
+            # 'sign': 'de013951ba1ec163e9c42abad0ef5c61',
+            'v': '1.0',
+            'timeout': '5000',
+            'dataType': 'jsonp',
+            'valueType': 'original',
+            'jsonpIncPrefix': 'tbbe',
+            'api': 'mtop.taobao.pc.growth.taocoin.queryUserTaoCoin',
+            'type': 'originaljsonp',
+            'callback': 'mtopjsonptbbe1',
+            'data': '{}',
+            'bx-ua': 'fast-load',
+        }
+
+        headers = {
+            'accept': '*/*',
+            'accept-language': 'zh,zh-CN;q=0.9',
+            'cache-control': 'no-cache',
+            'pragma': 'no-cache',
+            'referer': 'https://jianghu.taobao.com/coin.html',
+            'sec-ch-ua': '"Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'script',
+            'sec-fetch-mode': 'no-cors',
+            'sec-fetch-site': 'same-site',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+            # 'cookie': 'cookie2=13d5ad1b67c92b3f1a6d85f41c777b37; cookie1=B0T9XTQP2TcAnMHnYYt2k%2FwqOaAotOhP9dm1aF5Psiw%3D; cookie17=UNDVcqcRQ%2FLnOQ%3D%3D; _tb_token_=eee68a5751535; t=a663acb9dbec295c1b3b43ccc45e441e; _m_h5_tk=33f20dedd34150caaa507a913d7105b9_1786094304554; _m_h5_tk_enc=9e0e726aa946ce5ddefaba07a0fa19d4; unb=3010046509; sgcookie=E100vZ8Pv1BEeAbNRZeFowPSnYGPO09S1M6%2FUzxmHJWju0GdKJ5ftv686%2FduRI6kDyQNK5ujmrtFVxj%2FpogslBssh6Id9fHq7D4%2FNwqhGsZrDv0%3D; tracknick=t_1483190610039_0170; lgc=t_1483190610039_0170; _nk_=t_1483190610039_0170; dnk=t_1483190610039_0170; lid=t_1483190610039_0170; wk_cookie2=1903d63a933b8f3c2c07f3929e7b397c; wk_unb=UNDVcqcRQ%2FLnOQ%3D%3D; _samesite_flag_=true; sg=09c; csg=aa306396; skt=352205af34f4a04d; uc1=cookie21=Vq8l%2BKCLjhS4UhJVbhgU&cookie14=UoYWO6nv1ICLKQ%3D%3D&existShop=false&cookie15=UIHiLt3xD8xYTw%3D%3D&cookie16=UIHiLt3xCS3yM2h4eKHS9lpEOw%3D%3D&pas=0; uc3=vt3=F8dD1NjO9f2gtb4o29M%3D&lg2=WqG3DMC9VAQiUQ%3D%3D&nk2=F6k3HMo5RnJf7ORDMubwTbitK8o%3D&id2=UNDVcqcRQ%2FLnOQ%3D%3D; uc4=nk4=0%40FbMocpyJnB1QpL0l5A6NPnnFHWBIsftr07GVYb15IQ%3D%3D&id4=0%40UgclH%2FhPC5Kc6dodqcdUkQdHcsg9; ultraCookieBase=1k6S45BQHSQGX1XNsFFAFTuw5EVYGOR9rmHm02fMNvzLf%2B4Kg%2FsRAnCMpa3NiM%2BUKvS%2FFZYELJX2C%2FrumHMkN%2FM8V9mAVO6nzctb5MnnnLulBHRj2JBVf3xHcsnDreJNscMhVaaoIH6vjk26Q2JqE%2FUmLza4k%2Fjoj7X0v9uE7iNUtySdX2gkyCTrVJYHTHHRAxS2qu%2BJoasGdjRpddSlu7DtPF%2BDjqFqsdl%2BnrYfjZdptWP7rj1A50NDjKxVAspph6dN4b93lIpII3pNuolu6Zwpuh8U%3D; cancelledSubSites=empty; existShop=MTc4NjA4NTY2NA%3D%3D; _cc_=V32FPkk%2Fhw%3D%3D; _l_g_=Ug%3D%3D; lc=Vv6a3V4cwr4Ingn7PP8s60g6IyaMDJznrw%3D%3D; 3PcFlag=1786085653899; mtop_partitioned_detect=1',
+        }
+        response = requests.get(url, params=params, headers=headers, cookies=self.session.cookies.get_dict())
+        if response.cookies.get('_m_h5_tk'):
+            self.session.cookies.update(response.cookies)
+            self.initialize.info_message("_m_h5_tk重置成功")
+        else:
+            self.initialize.error_message("_m_h5_tk重置失败")
 
     @staticmethod
     def calendar_days(data: dict) -> list:
         return (
-            ((data or {}).get("model") or {})
-            .get("userSign", {})
-            .get("signCard", {})
-            .get("calendar")
-            or []
+                ((data or {}).get("model") or {})
+                .get("userSign", {})
+                .get("signCard", {})
+                .get("calendar")
+                or []
         )
 
     @staticmethod
@@ -291,21 +324,18 @@ class TxSign(Base):
         saving = user.get("coinSaving", "-")
         signed = "已签" if sign.get("signed") else "未签"
         days = (
-            (sign.get("signCard") or {}).get("consecutiveSignDays")
-            or sign.get("uninterruptedCount")
-            or "-"
+                (sign.get("signCard") or {}).get("consecutiveSignDays")
+                or sign.get("uninterruptedCount")
+                or "-"
         )
         progress = activity.get("signProgressDesc") or f"连签{days}天"
         tomorrow = (sign.get("signAward") or {}).get("awardAmount") or (
-            (sign.get("signCard") or {}).get("signRewardTomorrow")
-        ) or "-"
-        self.initialize.info_message(
-            f"{display_nick} 余额 {coin}（约 {saving} 元）| 今日{signed} | {progress} | 明日可得 {tomorrow}",
-            is_flag=True,
-        )
+            (sign.get("signCard") or {}).get("signRewardTomorrow")) or "-"
+        msg = f"{display_nick} 余额 {coin}（约 {saving} 元）| 今日{signed} | {progress} | 明日可得 {tomorrow}"
+        self.initialize.info_message(msg, is_flag=True, )
 
-    def do_work(self, nick: str, cookies: dict) -> None:
-        calendar = self.sign_calendar(cookies)
+    def do_work(self, nick: str) -> None:
+        calendar = self.sign_calendar()
         if not self.ret_ok(calendar):
             self.initialize.error_message(f"{nick} 签到查询失败：{self.ret_msg(calendar)}", is_flag=True)
             return
@@ -315,28 +345,62 @@ class TxSign(Base):
         already_signed = self.is_today_signed(cal_data)
         if not already_signed:
             self.initialize.info_message(f"{nick} 今日未签到，调用领取接口…", is_flag=True)
-            collect = self.collect_reward(cookies)
+            collect = self.collect_reward()
             if not self.ret_ok(collect):
-                self.initialize.error_message(
-                    f"{nick} 签到领取失败：{self.ret_msg(collect)}", is_flag=True
-                )
+                self.initialize.error_message(f"{nick} 签到领取失败：{self.ret_msg(collect)}", is_flag=True)
                 return
             self.print_collect_result(nick, collect.get("data") or {})
 
         # 推送淘金币总量（已签 / 刚领完都查一次）
-        town = self.town_index(cookies)
+        town = self.town_index()
         if self.ret_ok(town):
             town_data = town.get("data") or {}
             self.print_coin_total(nick, town_data)
             if not already_signed:
                 self.print_town_index(nick, town_data)
         else:
-            self.initialize.error_message(
-                f"{nick} 小镇首页失败：{self.ret_msg(town)}", is_flag=True
-            )
+            self.initialize.error_message(f"{nick} 小镇首页失败：{self.ret_msg(town)}", is_flag=True)
 
         if already_signed:
             self.initialize.info_message(f"{nick} 今日已签到，跳过领取接口", is_flag=True)
+
+    def run(self) -> None:
+        task_name = "TX Sign"
+        notify_title = "TX Sign | https://huodong.taobao.com/"
+        self.initialize.info_message(f"{task_name} start")
+        accounts = self.initialize.load_accounts()
+        if not accounts:
+            env_name = self.initialize.env_key("account")
+            self.initialize.error_message(
+                f"未配置环境变量 {env_name}，请在青龙面板配置 Cookie",
+                is_flag=True,
+            )
+            self.initialize.send_notify(notify_title)
+            return
+        for index, (account_name, account) in enumerate(accounts, 1):
+            self.initialize.info_message(
+                f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}"
+            )
+            try:
+                cookies = self.cookies_to_dict(account)
+                if not cookies:
+                    self.initialize.error_message(
+                        f"{account_name} Cookie 为空", is_flag=True
+                    )
+                else:
+                    self.apply_cookies(cookies)
+                    nick = self.account_nick(account_name)
+                    self.do_work(nick)
+            except Exception as exc:
+                self.initialize.error_message(
+                    f"{account_name} 执行失败：{exc}", is_flag=True
+                )
+            if index < len(accounts):
+                delay = random.uniform(2.0, 5.0)
+                self.initialize.info_message(f"等待 {delay:.1f}s 处理下一账号")
+                time.sleep(delay)
+        self.initialize.info_message(f"{task_name} end")
+        self.initialize.send_notify(notify_title)
 
 
 if __name__ == "__main__":
