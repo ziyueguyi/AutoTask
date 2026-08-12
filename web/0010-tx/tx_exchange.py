@@ -6,8 +6,8 @@
 # 青龙环境变量（前缀 TX）：
 #   TX_account         Cookie（淘系共用）
 #   TX_notify          通知开关，填 1 开启
-#   TX_EXCHANGE_range  兑换范围（按 reduceCoinAmount），默认 -1
-#                        -1 / 100-1000 / 100- / -1000
+#   TX_EXCHANGE_range  兑换范围（按 reduceCoinAmount），默认 0 不兑换
+#                        0 / -1 / 100-1000 / 100- / -1000
 # 依赖：curl_cffi
 const $ = new Env('淘金币兑换')
 cron: 1 1 1 1 1
@@ -42,7 +42,7 @@ class TxExchange(Base):
             ),
         })
         self.coin_range = self.parse_coin_range(
-            (os.getenv("TX_EXCHANGE_range") or "-1").strip()
+            (os.getenv("TX_EXCHANGE_range") or "0").strip()
         )
         self.h5_token = self.load_tool("h5_token", "h5_token.py")
         self.initialize.info_message(f"兑换范围：{self.format_coin_range(self.coin_range)}")
@@ -220,17 +220,19 @@ class TxExchange(Base):
 
     # —— 兑换范围 ——
     @staticmethod
-    def parse_coin_range(raw: str) -> tuple[int | None, int | None] | None:
+    def parse_coin_range(raw: str) -> tuple[int | None, int | None] | None | bool:
         """
         解析兑换范围，返回 (min, max)；None 表示该端不限。
-        返回 None（整体）表示 -1 不限全部。
+        返回 None（整体）表示 -1 不限全部；返回 False 表示 0 不兑换。
         """
-        text = (raw or "-1").strip()
+        text = (raw or "0").strip()
+        if text == "0":
+            return False
         if text == "-1":
             return None
         if "-" not in text:
             raise ValueError(
-                f"兑换范围格式错误：{raw!r}，支持 -1 / 100-1000 / 100- / -1000"
+                f"兑换范围格式错误：{raw!r}，支持 0 / -1 / 100-1000 / 100- / -1000"
             )
         left, right = text.split("-", 1)
         if left == "" and right == "":
@@ -242,7 +244,9 @@ class TxExchange(Base):
         return low, high
 
     @staticmethod
-    def format_coin_range(coin_range: tuple[int | None, int | None] | None) -> str:
+    def format_coin_range(coin_range: tuple[int | None, int | None] | None | bool) -> str:
+        if coin_range is False:
+            return "0（不兑换）"
         if coin_range is None:
             return "-1（不限）"
         low, high = coin_range
@@ -268,6 +272,8 @@ class TxExchange(Base):
                 return None
 
     def in_coin_range(self, cost: int | None) -> bool:
+        if self.coin_range is False:
+            return False
         if self.coin_range is None:
             return True
         if cost is None:
@@ -383,6 +389,12 @@ class TxExchange(Base):
             return
         benefits = self.extract_benefit_list(home.get("data") or {})
         matched = self.print_benefits(nick, benefits, balance=balance)
+        if self.coin_range is False:
+            self.initialize.info_message(
+                f"{nick} 兑换范围 0，不兑换",
+                is_flag=True,
+            )
+            return
         if not matched:
             self.initialize.info_message(f"{nick} 范围内无可兑换红包", is_flag=True)
             return

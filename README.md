@@ -92,8 +92,8 @@ self.import_set = self.import_set.ImportSet("BD")
 | `TX_account` | 淘系共用 Cookie（需含 `_m_h5_tk`、`cookie2`）；多账号用 `&&` 或换行 |
 | `TX_notify` | 淘系通知开关，填 `1` 开启 |
 | `TX_JH_account` / `TX_JH_notify` | 可选；与 `TX_*` 并存时 **优先使用 TX_JH_*** |
-| `TX_EXCHANGE_range` | 金币换好礼范围（按 `reduceCoinAmount`）：`-1` / `100-1000` / `100-` / `-1000` |
-| `TX_JH_EXCHANGE_range` | 淘江湖兑换范围（按 `costCoin`）：`-1` / `100-1000` / `100-` / `-1000` |
+| `TX_EXCHANGE_range` | 金币换好礼范围（按 `reduceCoinAmount`）：`0` 不兑换 / `-1` / `100-1000` / `100-` / `-1000`，默认 `0` |
+| `TX_JH_EXCHANGE_range` | 淘江湖兑换范围（按 `costCoin`）：`0` 不兑换 / `-1` / `100-1000` / `100-` / `-1000`，默认 `0` |
 | `TX_LOGIN_client_id` | 青龙应用 Client ID（与 secret 同时配置才可自动上传 Cookie） |
 | `TX_LOGIN_client_secret` | 青龙应用 Client Secret |
 | `TX_LOGIN_ql_url` | 青龙地址，默认 `http://127.0.0.1:5700` |
@@ -255,10 +255,11 @@ sessionid=xxx; sid_tt=xxx; sessionid_ss=xxx; ...
 | `tx_jh_exchange.py` | `TX_account` | `TX_notify` | `1 1 1 1 1` |
 | `tx_jh_task.py` | `TX_account` | `TX_notify` | `1 1 1 1 1` |
 
-`TX_EXCHANGE_range` / `TX_JH_EXCHANGE_range`（默认 `-1`）：
+`TX_EXCHANGE_range` / `TX_JH_EXCHANGE_range`（默认 `0`）：
 
 | 值 | 含义 |
 |----|------|
+| `0` | 不兑换（仅查询） |
 | `-1` | 不限 |
 | `100-1000` | 消耗在 100～1000 |
 | `100-` | 消耗 ≥ 100 |
