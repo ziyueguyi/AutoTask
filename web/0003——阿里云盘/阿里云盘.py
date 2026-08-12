@@ -190,7 +190,7 @@ class AliyunDrive:
         day = (data.get("result") or {}).get("signInCount") or 0
         self.initialize.info_message(f"{nickname} 本月已签到 {day} 天", is_flag=True)
         if day:
-            self.receive_reward(access_token, int(day))
+            # self.receive_reward(access_token, int(day))
             self.get_sign_in_list_v2(access_token, int(day))
 
     def run(self) -> None:
