@@ -1,0 +1,19 @@
+web/0010-tx/tx_sign.py
+  s_6b8fc962ff3e09::t_dcc17e2616debd 291,298-303,316-319
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a7f6d9aff25ed56c71ad539643689d323a1287b6",
+  "prompts": {},
+  "sessions": {
+    "s_6b8fc962ff3e09": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c093885d-b318-45e7-b385-34b0d8235236",
+        "model": "auto-smart"
+      },
+      "human_author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
