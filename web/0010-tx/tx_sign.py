@@ -288,14 +288,19 @@ class TxSign(Base):
         return bool(today and today.get("signed"))
 
     @staticmethod
-    def day_summary(day: dict | None, label: str) -> str:
+    def day_summary(day: dict | None, label: str, *, with_multiple: bool = False) -> str:
         if not day:
             return f"{label}：无数据"
         signed = "已签" if day.get("signed") else "未签"
         coin = day.get("rewardNumber")
         if coin is None:
             coin = day.get("originRewardNumber", "-")
-        return f"{label}（{day.get('dateStr', '?')}）：{signed}，金币 {coin}"
+        text = f"{label}（{day.get('dateStr', '?')}）：{signed}，金币 {coin}"
+        if with_multiple:
+            multiple = day.get("awardMultiple")
+            if multiple is not None and multiple != "":
+                text += f" 倍数：{multiple}"
+        return text
 
     def print_nearby_sign(self, nick: str, data: dict) -> None:
         calendar = self.calendar_days(data)
@@ -308,7 +313,10 @@ class TxSign(Base):
         tomorrow = calendar[today_idx + 1] if today_idx + 1 < len(calendar) else None
         self.initialize.info_message(f"{nick} {self.day_summary(yesterday, '昨天')}", is_flag=True)
         self.initialize.info_message(f"{nick} {self.day_summary(today, '今天')}", is_flag=True)
-        self.initialize.info_message(f"{nick} {self.day_summary(tomorrow, '明天')}", is_flag=True)
+        self.initialize.info_message(
+            f"{nick} {self.day_summary(tomorrow, '明天', with_multiple=True)}",
+            is_flag=True,
+        )
 
     def print_coin_total(self, nick: str, data: dict) -> None:
         """推送账号淘金币总量。"""
