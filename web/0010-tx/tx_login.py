@@ -55,9 +55,7 @@ class TxLogin(Base):
         self._csrf = ""
         proxy_env = self.import_set.env_key("proxy")
         if self.import_set.get_env("proxy"):
-            self.initialize.info_message(
-                f"扫码登录直连；仅获取 h5 cookie 时走代理（{proxy_env}）"
-            )
+            self.initialize.info_message(f"扫码登录直连；仅获取 h5 cookie 时走代理（{proxy_env}）")
 
     # ---------- utils ----------
 
