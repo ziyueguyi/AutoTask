@@ -1,0 +1,14 @@
+web/0010-tx/可行性文档.md
+  h_756b7de6229b75 1-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e18fd7450fc91d8c61e55ae28275e1595f61861d",
+  "prompts": {},
+  "humans": {
+    "h_756b7de6229b75": {
+      "author": "sxzhang1 <sxzhang1@leqee.com>"
+    }
+  }
+}
