@@ -34,6 +34,7 @@
 | [美团天天神券](https://h5.waimai.meituan.com/) | ❌     | ❌   | ✅   | ✅       | 签到领豆、兑必中符、抢红包；Token 从 H5 Cookie 获取 |
 | [天机爻](https://tianjiyao.com/)               | ✅     | ✅   | ❌   | ✅       | 每日签到领积分 + 每日一签查询推送 |
 | [淘金币](https://huodong.taobao.com/)          | ✅     | ❌   | ❌   | ✅       | 目录 `web/0010-tx`：签到/任务/兑换 + 江湖任务/兑换 + 扫码登录 |
+| [哈基米](https://gemai.huchan.cn/)               | ❌     | ✅   | ❌   | ✅       | 账密登录 + 每日签到（目录 `web/0011——哈基米`） |
 
 #### 依赖管理
 
@@ -85,6 +86,10 @@ self.import_set = self.import_set.ImportSet("BD")
 | `MT_grab_big` | 填 `1` 开启大额红包监测 |
 | `TJY_account` | 天机爻账号 JSON：`{"email":"邮箱","password":"密码"}`，可选加 `cookie`；多账号用 `&&` 或换行 |
 | `TJY_notify` | 天机爻通知开关，填 `1` 开启 |
+| `HJM_account` | 哈基米账号 JSON：`{"username":"用户名","password":"密码"}`，登录后自动写入 `cookie`/`user_id`；也可直接 `{"cookie":"session=..."}`；多账号用 `&&` 或换行 |
+| `HJM_notify` | 哈基米通知开关，填 `1` 开启 |
+| `HJM_client_id` / `HJM_client_secret` | 可选；配置后登录成功会回写 Cookie 到 `HJM_account`（也可用通用 `QL_CLIENT_ID` / `QL_CLIENT_SECRET`） |
+| `HJM_ql_url` | 可选青龙地址，默认 `http://127.0.0.1:5700`（或 `QL_URL`） |
 | `TY_account` | 天翼网盘网页 Cookie（必须含 `COOKIE_LOGIN_USER`）；多账号用 `&&` 或换行 |
 | `TY_notify` | 天翼网盘通知开关，填 `1` 开启 |
 | `JJ_account` | 稀土掘金网页 Cookie（含 `sessionid`）；多账号用 `&&` 或换行 |
