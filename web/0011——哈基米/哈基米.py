@@ -429,15 +429,12 @@ class HaJiMi:
 
     @staticmethod
     def fmt_quota(value) -> str:
+        """额度展示：原始值 / 500000，保留两位小数（如 2522010 → 5.04）。"""
         try:
-            n = int(value)
+            n = float(value)
         except (TypeError, ValueError):
             return str(value)
-        if abs(n) >= 1_000_000:
-            return f"{n / 1_000_000:.2f}M ({n})"
-        if abs(n) >= 1_000:
-            return f"{n / 1_000:.1f}K ({n})"
-        return str(n)
+        return f"{n / 500000:.2f}"
 
     def emit_checkin_status(self, data: dict, *, title: str = "签到信息") -> bool | None:
         if not data.get("success"):
@@ -455,9 +452,7 @@ class HaJiMi:
         lines = [
             f"{title}：启用={enabled}",
             f"  今日已签={checked} | 本月={count} 次 | 累计={total} 次",
-            f"  本月获额={self.fmt_quota(total_quota)}"
-            f"（区间 {self.fmt_quota(payload.get('min_quota'))}"
-            f" ~ {self.fmt_quota(payload.get('max_quota'))}）",
+            f"  本月获额={self.fmt_quota(total_quota)}",
         ]
         if records:
             recent = records[-5:] if len(records) > 5 else records
@@ -526,7 +521,7 @@ class HaJiMi:
             if result.get("success"):
                 reward = result.get("data")
                 if reward is not None and reward != "":
-                    self.emit(f"签到成功：{msg} | data={reward}")
+                    self.emit(f"签到成功：{msg} | 获额={self.fmt_quota(reward)}")
                 else:
                     self.emit(f"签到成功：{msg}")
                 after = self.checkin_status(month)
@@ -553,7 +548,8 @@ class HaJiMi:
         else:
             self.emit("青龙未配置 client_id/secret，将直接使用账号里的 Cookie（不回写面板）")
 
-        accounts = self.initialize.load_accounts()
+        # accounts = self.initialize.load_accounts()
+        accounts=[['12',{"username":"会做饭的菜鸡","password":".ai94264744946"}]]
         if not accounts:
             self.initialize.error_message(
                 f'未配置账号。请设置 {self.env_name}={{"username":"用户名","password":"密码"}}'
