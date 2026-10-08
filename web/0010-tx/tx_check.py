@@ -3,10 +3,11 @@
 # @项目名称 :AutoTask
 # @文件名称 :tx_check.py
 # @文件介绍 :淘系 Cookie 有效性检测（getUserSimple）；失效则青龙禁用/剔除
+#   仅检测「已启用」的 TX_account；青龙里已禁用的变量跳过，不检测、不告警
 # 青龙环境变量（前缀 TX / TX_JH / TX_LOGIN）：
 #   TX_account              Cookie（淘系共用，多账号 && 或换行）
 #   TX_notify               通知开关，填 1 开启
-#   TX_LOGIN_client_id      青龙应用 Client ID（禁用变量需要）
+#   TX_LOGIN_client_id      青龙应用 Client ID（查启用状态 / 禁用变量需要）
 #   TX_LOGIN_client_secret  青龙应用 Client Secret
 #   TX_LOGIN_ql_url         青龙地址，默认 http://127.0.0.1:5700
 #   也可用 QL_CLIENT_ID / QL_CLIENT_SECRET / QL_URL
@@ -25,14 +26,19 @@ from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from public.Base import Base
+from public.tools.account_loader import parse_cookie_item
 
 
 class TxCheck(Base):
+    # 青龙 env.status：0=启用，1=禁用
+    ENV_ENABLED = 0
+
     def __init__(self) -> None:
         # TX_LOGIN 用于读青龙 OpenAPI 秘钥
         super().__init__(["TX", "TX_JH", "TX_LOGIN"], use_proxy=False)
         self.check_api = self.load_tool("check_cookie", "check_cookie.py")
         self.ql = self._build_qinglong()
+        self.skipped_disabled = 0
 
     def load_tool(self, module_name: str, filename: str):
         path = Path(__file__).resolve().parent / "tools" / filename
@@ -164,6 +170,97 @@ class TxCheck(Base):
             f"{k}={v}" for k, v in cookies.items() if v is not None and str(v) != ""
         )
 
+    @staticmethod
+    def env_is_enabled(env: dict) -> bool:
+        try:
+            return int(env.get("status") or 0) == TxCheck.ENV_ENABLED
+        except (TypeError, ValueError):
+            return True
+
+    def candidate_account_env_names(self) -> list[str]:
+        """多前缀时检查全部候选，如 TX_account / TX_JH_account。"""
+        keys = list(self.initialize.env_keys("account") or [])
+        primary = self.initialize.env_key("account")
+        if primary and primary not in keys:
+            keys.append(primary)
+        # 去重保序
+        seen, out = set(), []
+        for k in keys:
+            if k and k not in seen:
+                seen.add(k)
+                out.append(k)
+        return out or [self.initialize.env_key("account")]
+
+    def load_enabled_accounts(self) -> list[tuple[str, dict]]:
+        """
+        优先走青龙 OpenAPI：只加载已启用的 account 变量。
+        未启用 → 跳过（不进检测、不告警）。
+        未配置青龙秘钥时回退到进程环境变量。
+        """
+        if not self.ql.ready:
+            self.initialize.info_message(
+                "未配置青龙 OpenAPI，改为读取进程环境变量（无法区分启用/禁用）"
+            )
+            return self.initialize.load_accounts()
+
+        names = self.candidate_account_env_names()
+        accounts: list[tuple[str, dict]] = []
+        enabled_n = 0
+        for env_name in names:
+            try:
+                envs = self.ql.find_envs(env_name)
+            except Exception as exc:
+                self.initialize.error_message(
+                    f"读取青龙 {env_name} 失败：{exc}"
+                )
+                continue
+            if not envs:
+                continue
+            for env in envs:
+                eid = env.get("id")
+                if not self.env_is_enabled(env):
+                    self.skipped_disabled += 1
+                    # 仅普通日志，不进通知
+                    self.initialize.info_message(
+                        f"跳过未启用：{env_name}#{eid}（不检测、不告警）"
+                    )
+                    continue
+                enabled_n += 1
+                value = env.get("value") or ""
+                parts = self.split_accounts(value)
+                if not parts:
+                    self.initialize.info_message(
+                        f"{env_name}#{eid} 已启用但值为空，跳过"
+                    )
+                    continue
+                for index, item in enumerate(parts, 1):
+                    try:
+                        parsed = parse_cookie_item(item)
+                    except Exception as exc:
+                        self.initialize.error_message(
+                            f"{env_name}#{eid} 第{index}段解析失败：{exc}",
+                            is_flag=True,
+                        )
+                        continue
+                    label = f"{env_name}#{eid}"
+                    if len(parts) > 1:
+                        label = f"{label}-{index}"
+                    accounts.append((label, parsed))
+
+        self.initialize.info_message(
+            f"青龙账号变量 {names}：启用 {enabled_n} 条，未启用跳过 {self.skipped_disabled} 条，"
+            f"待检测账号 {len(accounts)} 个"
+        )
+        if not accounts and enabled_n == 0 and self.skipped_disabled == 0:
+            # OpenAPI 一个都没找到时，回退进程环境
+            fallback = self.initialize.load_accounts()
+            if fallback:
+                self.initialize.info_message(
+                    "青龙未找到对应变量，回退进程环境变量账号"
+                )
+            return fallback
+        return accounts
+
     def check_one(self, account_name: str, account: dict) -> bool:
         cookies = self.cookies_to_dict(account)
         nick = self.check_api.account_label(cookies, account_name)
@@ -199,11 +296,18 @@ class TxCheck(Base):
         task_name = "TX Cookie Check"
         notify_title = "TX Cookie Check"
         self.initialize.info_message(f"{task_name} start")
-        accounts = self.initialize.load_accounts()
+        accounts = self.load_enabled_accounts()
         if not accounts:
             env_name = self.initialize.env_key("account")
+            if self.skipped_disabled > 0:
+                # 全部未启用：不告警、不推送
+                self.initialize.info_message(
+                    f"{env_name} 均未启用（跳过 {self.skipped_disabled} 条），本次不检测"
+                )
+                self.initialize.info_message(f"{task_name} end")
+                return
             self.initialize.error_message(
-                f"未配置环境变量 {env_name}",
+                f"未配置或无可检测账号：{env_name}",
                 is_flag=True,
             )
             self.initialize.send_notify(notify_title)
@@ -229,7 +333,10 @@ class TxCheck(Base):
                 delay = random.uniform(1.0, 3.0)
                 time.sleep(delay)
 
-        summary = f"检测结束：有效 {ok_n}，失效 {bad_n}"
+        summary = (
+            f"检测结束：有效 {ok_n}，失效 {bad_n}"
+            + (f"，未启用跳过 {self.skipped_disabled}" if self.skipped_disabled else "")
+        )
         self.initialize.info_message(summary, is_flag=bad_n > 0)
         self.initialize.info_message(f"{task_name} end")
         if bad_n > 0:
