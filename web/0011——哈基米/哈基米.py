@@ -31,6 +31,12 @@ from pathlib import Path
 
 import requests
 
+# 本地硬编码（有内容则优先于 HJM_account；上青龙前请清空）
+HARDCODE_ACCOUNTS: list[dict] = [
+    # {"username": "会做饭的菜鸡", "password": "密码1"},
+    # {"username": "紫月孤忆", "password": "密码2"},
+]
+
 
 class HaJiMi:
     SITE = "https://gemai.huchan.cn"
@@ -430,6 +436,8 @@ class HaJiMi:
     @staticmethod
     def fmt_quota(value) -> str:
         """额度展示：原始值 / 500000，保留两位小数（如 2522010 → 5.04）。"""
+        if isinstance(value, dict):
+            value = value.get("quota_awarded", value.get("quota"))
         try:
             n = float(value)
         except (TypeError, ValueError):
@@ -548,12 +556,20 @@ class HaJiMi:
         else:
             self.emit("青龙未配置 client_id/secret，将直接使用账号里的 Cookie（不回写面板）")
 
-        # accounts = self.initialize.load_accounts()
-        accounts=[['12',{"username":"会做饭的菜鸡","password":".ai94264744946"}]]
+        if HARDCODE_ACCOUNTS:
+            accounts = [
+                (f"硬编码账户{i}", dict(item))
+                for i, item in enumerate(HARDCODE_ACCOUNTS, 1)
+                if isinstance(item, dict) and item
+            ]
+            self.emit(f"使用硬编码账号 {len(accounts)} 个（忽略 {self.env_name}）")
+        else:
+            accounts = self.initialize.load_accounts()
+            self.emit(f"从 {self.env_name} 加载账号 {len(accounts)} 个")
         if not accounts:
             self.initialize.error_message(
-                f'未配置账号。请设置 {self.env_name}={{"username":"用户名","password":"密码"}}'
-                ' 或 {"cookie":"session=..."}'
+                f'未配置账号。请填写 HARDCODE_ACCOUNTS，或设置 {self.env_name}='
+                '{"username":"用户名","password":"密码"}（多账号换行或 &&）'
             )
             return
 
@@ -561,6 +577,7 @@ class HaJiMi:
             self.initialize.info_message(
                 f"共 {len(accounts)} 个账户，第 {index} 个：{account_name}"
             )
+            self.emit(f"—— 第 {index}/{len(accounts)} 个：{account_name}")
             try:
                 self.run_account(account_name, account)
             except Exception as exc:
